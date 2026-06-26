@@ -1,0 +1,687 @@
+---
+#
+# foreman deployment — group vars
+# Secrets are in vault.yml (Vault-sourced at runtime).
+#
+# Lab-wide config (vault_addr, foreman, ipa_primary, etc.) comes from
+# DevOps_new/lab-env/env.yml passed at run time via Makefile (-e @lab-env).
+# Do not duplicate those values here.
+#
+
+# ============================================================
+# ProxMox storage expansion (Phase 0)
+# Adds a data disk via the PVE API before the OS baseline runs.
+# Set foreman_expand_storage: false only if the disk was pre-provisioned.
+# VMID and node are discovered automatically by the proxmox_disk role.
+# ============================================================
+foreman_expand_storage: true
+
+foreman_proxmox_api_host: "pve2.{{ domain }}"    # any PVE node — lab-env: domain
+foreman_proxmox_data_disk: virtio1               # disk slot to add (must be free)
+foreman_proxmox_storage: truenas                 # PVE storage backend
+foreman_proxmox_disk_size: "400G"                # total size for the data disk
+
+# Fallback device if foreman_expand_storage: false and disk already exists.
+# virtio1 → /dev/vdb, scsi1 → /dev/sdb, etc.
+foreman_data_disk_device: /dev/vdb
+
+# ============================================================
+# LVM layout — volumes carved from the data disk.
+# The VG device is set dynamically in site.yml using proxmox_disk_device
+# (set by Phase 0) with foreman_data_disk_device as fallback.
+# ============================================================
+lvm_provision_volumes:
+  - lv: lv_pulp
+    vg: vg_foreman
+    size: 300G
+    fstype: xfs
+    mount: /var/lib/pulp
+    mount_opts: defaults
+
+  - lv: lv_containers
+    vg: vg_foreman
+    size: 40G
+    fstype: xfs
+    mount: /var/lib/containers
+    mount_opts: defaults
+
+  - lv: lv_pgsql
+    vg: vg_foreman
+    size: 30G
+    fstype: xfs
+    mount: /var/lib/pgsql
+    mount_opts: defaults
+
+# ============================================================
+# Identity
+# ============================================================
+foreman_version: "3.19"
+foreman_katello_version: "4.21"
+foreman_puppet_release: "puppet8"
+
+foreman_hostname: "{{ foreman }}"         # lab-env: foreman
+foreman_url: "https://{{ foreman_hostname }}"
+
+foreman_org: "My Organization"
+foreman_location: "LAB"
+
+foreman_username: "admin"
+
+# ============================================================
+# Installer feature flags
+# ============================================================
+foreman_installer_cli_enable:
+  - ansible
+  - discovery
+  - openscap
+  - puppet
+  - tasks
+  - templates
+
+foreman_installer_plugin_enable:
+  - ansible
+  - bootdisk
+  - discovery
+  - openscap
+  - proxmox
+  - puppet
+  - remote-execution
+  - templates
+  - vault
+
+foreman_installer_proxy_plugin_enable:
+  - ansible
+  - discovery
+  - openscap
+  - remote-execution-script
+
+foreman_installer_further_enable:
+  - puppet
+
+# ============================================================
+# DHCP
+# ============================================================
+foreman_dhcp_enable: true
+foreman_dhcp_provider: isc
+foreman_dhcp_interface: eth0          # set to your NIC name
+foreman_dhcp_gateway: "192.0.2.1"
+foreman_dhcp_range_start: "192.0.2.100"
+foreman_dhcp_range_end: "192.0.2.200"
+foreman_dhcp_nameservers:
+  - "192.0.2.53"
+
+# ============================================================
+# DNS (PowerDNS smart proxy)
+# ============================================================
+foreman_dns_enable: true
+foreman_dns_provider: powerdns
+foreman_pdns_api_url: "http://pdns.example.com:8081"
+
+# ============================================================
+# TFTP
+# ============================================================
+foreman_tftp_enable: true
+foreman_tftp_listen_on: https
+
+# ============================================================
+# IPA / Realm
+# ============================================================
+foreman_realm_enable: true
+foreman_realm_pam_server: foreman
+foreman_realm_ipa_authentication: "true"
+foreman_realm_ipa_authentication_api: "false"
+foreman_realm_proxy: "true"
+foreman_realm_provider: freeipa
+foreman_realm_principal: "svc-foreman-agent@{{ kerberos_realm }}"   # lab-env: kerberos_realm
+foreman_realm_freeipa_remove_dns: "false"
+foreman_ipa_controller: "{{ ipa_primary }}"                          # lab-env: ipa_primary
+
+# ============================================================
+# Puppet
+# ============================================================
+foreman_puppet_autosign_entries: "[*.{{ domain }}]"                 # lab-env: domain
+
+# ============================================================
+# SSL certificates (acme_sh — set foreman_custom_certs: true to use)
+# ============================================================
+foreman_custom_certs: true
+foreman_cert_path: "/root/.acme.sh/{{ foreman_hostname }}/{{ foreman_hostname }}.cer"
+foreman_cert_key_path: "/root/.acme.sh/{{ foreman_hostname }}/{{ foreman_hostname }}.key"
+foreman_cert_ca_path: "/root/.acme.sh/{{ foreman_hostname }}/ca.cer"
+
+foreman_certs_city: Anytown
+foreman_certs_country: US
+foreman_certs_org: "My Organization"
+foreman_certs_org_unit: IT
+foreman_certs_state: NC
+
+# ============================================================
+# Proxy content types
+# ============================================================
+foreman_proxy_content_enable_docker: false
+foreman_proxy_content_enable_ostree: true
+
+# ============================================================
+# AWX integration
+# Uncomment once AWX job templates and host_config_key are ready.
+# ============================================================
+# foreman_awx_url: "https://awx.example.com"
+# foreman_awx_job_template_id: ""
+
+# ============================================================
+# Template sync (GitLab)
+# ============================================================
+foreman_template_gitlab_host: "{{ gitlab_url | regex_replace('^https?://', '') }}"   # lab-env: gitlab_url
+foreman_template_repo: "ssh://git@{{ foreman_template_gitlab_host }}/hardening/foreman-templates.git"
+foreman_template_import_associate: Always
+foreman_template_import_branch: main
+foreman_template_import_dirname: "/"
+foreman_template_import_filter: "EL.*|el.*|freeipa.*|kickstart_repos.*"
+foreman_template_import_force: true
+
+foreman_template_settings:
+  - name: template_sync_associate
+    value: Always
+  - name: template_sync_branch
+    value: main
+  - name: template_sync_commit_msg
+    value: "push from foreman"
+  - name: template_sync_dirname
+    value: "/"
+  - name: template_sync_filter
+    value: "EL.*|el.*|freeipa.*|kickstart_repos.*"
+  - name: template_sync_force
+    value: "yes"
+  - name: template_sync_repo
+    value: "{{ foreman_template_repo }}"
+
+# ============================================================
+# Sync plans
+# ============================================================
+foreman_sync_plans:
+  - name: Rocky 9
+    org: "{{ foreman_org }}"
+    interval: weekly
+    enabled: true
+    sync_date: "2025-04-15 03:00:00 UTC"
+    state: present
+  - name: Debian 12
+    org: "{{ foreman_org }}"
+    interval: weekly
+    enabled: true
+    sync_date: "2025-04-15 07:00:00 UTC"
+    state: present
+  - name: Debian 13
+    org: "{{ foreman_org }}"
+    interval: weekly
+    enabled: true
+    sync_date: "2025-04-15 09:00:00 UTC"
+    state: present
+
+# ============================================================
+# Products
+# ============================================================
+foreman_repo_products:
+  - name: Rocky 9
+    org: "{{ foreman_org }}"
+    sync_plan: Rocky 9
+    state: present
+  - name: Rocky 9 aarch64
+    org: "{{ foreman_org }}"
+    sync_plan: Rocky 9
+    state: present
+  - name: Debian 12
+    org: "{{ foreman_org }}"
+    sync_plan: Debian 12
+    state: present
+  - name: Debian 13
+    org: "{{ foreman_org }}"
+    sync_plan: Debian 13
+    state: present
+
+# ============================================================
+# RPM Repositories
+# ============================================================
+foreman_repos_rpm:
+  - name: Rocky 9 AppStream
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 AppStream Kickstart
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/kickstart/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 BaseOS
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/BaseOS/x86_64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 BaseOS Kickstart
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/BaseOS/x86_64/kickstart/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 Devel
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/Devel/x86_64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 EPEL
+    product: Rocky 9
+    url: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 Extras
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/extras/x86_64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 Foreman Client
+    product: Rocky 9
+    url: https://yum.theforeman.org/client/3.19/el9/x86_64/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 AppStream aarch64
+    product: Rocky 9 aarch64
+    url: https://dl.rockylinux.org/pub/rocky/9/AppStream/aarch64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 BaseOS aarch64
+    product: Rocky 9 aarch64
+    url: https://dl.rockylinux.org/pub/rocky/9/BaseOS/aarch64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 EPEL aarch64
+    product: Rocky 9 aarch64
+    url: https://dl.fedoraproject.org/pub/epel/9/Everything/aarch64/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 Devel aarch64
+    product: Rocky 9 aarch64
+    url: https://dl.rockylinux.org/pub/rocky/9/Devel/aarch64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Rocky 9 Foreman Client aarch64
+    product: Rocky 9 aarch64
+    url: https://yum.theforeman.org/client/3.19/el9/aarch64/
+    mirror_on_sync: true
+    download_policy: immediate
+
+# ============================================================
+# DEB Repositories
+# ============================================================
+foreman_repos_deb:
+  - name: Bookworm main
+    product: Debian 12
+    url: http://deb.debian.org/debian/
+    deb_releases: bookworm
+    deb_components: main
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Bookworm security
+    product: Debian 12
+    url: http://security.debian.org/debian-security
+    deb_releases: bookworm-security
+    deb_components: main
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Bookworm updates
+    product: Debian 12
+    url: http://deb.debian.org/debian/
+    deb_releases: bookworm-updates
+    deb_components: main
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Trixie main
+    product: Debian 13
+    url: http://deb.debian.org/debian/
+    deb_releases: trixie
+    deb_components: main
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Trixie security
+    product: Debian 13
+    url: http://security.debian.org/debian-security
+    deb_releases: trixie-security
+    deb_components: main
+    mirror_on_sync: true
+    download_policy: immediate
+  - name: Trixie updates
+    product: Debian 13
+    url: http://deb.debian.org/debian/
+    deb_releases: trixie-updates
+    deb_components: main
+    mirror_on_sync: true
+    download_policy: immediate
+
+# ============================================================
+# Architectures
+# ============================================================
+foreman_architectures:
+  - name: x86_64
+    state: present
+  - name: aarch64
+    state: present
+
+# ============================================================
+# Lifecycle environments
+# ============================================================
+foreman_lifecycle_envs:
+  - name: Development
+    state: present
+  - name: Stage
+    state: present
+  - name: Production
+    state: present
+
+# ============================================================
+# Content views
+# ============================================================
+foreman_content_views:
+  - name: Rocky 9 x86_64
+    org: "{{ foreman_org }}"
+    auto_publish: false
+    solve_dependencies: true
+    first_publish: true
+    lifecycle_envs:
+      - Development
+      - Stage
+      - Production
+    repos:
+      - name: Rocky 9 AppStream
+        product: Rocky 9
+      - name: Rocky 9 BaseOS
+        product: Rocky 9
+      - name: Rocky 9 Devel
+        product: Rocky 9
+      - name: Rocky 9 EPEL
+        product: Rocky 9
+      - name: Rocky 9 Extras
+        product: Rocky 9
+      - name: Rocky 9 Foreman Client
+        product: Rocky 9
+    state: present
+
+# ============================================================
+# Activation keys
+# ============================================================
+foreman_activation_keys:
+  - name: rocky9
+    org: "{{ foreman_org }}"
+    lifecycle_env: Development
+    content_view: Rocky 9 x86_64
+    unlimited_hosts: true
+    auto_attach: true
+    content_overrides:
+      - label: "{{ foreman_org | replace(',', '') | replace(' ', '_') }}_Rocky_9_Rocky_9_AppStream"
+        override: enabled
+      - label: "{{ foreman_org | replace(',', '') | replace(' ', '_') }}_Rocky_9_Rocky_9_BaseOS"
+        override: enabled
+      - label: "{{ foreman_org | replace(',', '') | replace(' ', '_') }}_Rocky_9_Rocky_9_EPEL"
+        override: enabled
+      - label: "{{ foreman_org | replace(',', '') | replace(' ', '_') }}_Rocky_9_Rocky_9_Foreman_Client"
+        override: enabled
+    state: present
+
+# ============================================================
+# Domains
+# ============================================================
+foreman_domains:
+  - name: "{{ domain }}"                   # lab-env: domain
+    locations: "{{ foreman_location }}"
+    organizations: "{{ foreman_org }}"
+    state: present
+
+# ============================================================
+# Subnets
+# ============================================================
+foreman_subnets:
+  - name: Lab
+    description: "lab network"
+    network: "192.0.2.0"
+    mask: "255.255.255.0"
+    gateway: "192.0.2.1"
+    dns_primary: "192.0.2.53"
+    dns_secondary: "192.0.2.1"
+    boot_mode: DHCP
+    tftp_proxy: "{{ foreman_hostname }}"
+    template_proxy: "{{ foreman_hostname }}"
+    dhcp_proxy: "{{ foreman_hostname }}"
+    dns_proxy: "{{ foreman_hostname }}"
+    domains:
+      - "{{ domain }}"
+    organizations:
+      - "{{ foreman_org }}"
+    locations:
+      - "{{ foreman_location }}"
+    state: present
+
+# ============================================================
+# Compute resources (ProxMox)
+# ============================================================
+foreman_compute_resources:
+  - name: PVE2
+    locations: "{{ foreman_location }}"
+    organizations:
+      - "{{ foreman_org }}"
+    provider: proxmox
+    url: "https://pve2.{{ domain }}:8006/api2/json"
+    user: root@pam
+    password: "{{ vault_pve2_password }}"
+    ssl_verify_peer: true
+    state: present
+  - name: PVE3
+    locations: "{{ foreman_location }}"
+    organizations:
+      - "{{ foreman_org }}"
+    provider: proxmox
+    url: "https://pve3.{{ domain }}:8006/api2/json"
+    user: root@pam
+    password: "{{ vault_pve3_password }}"
+    ssl_verify_peer: true
+    state: present
+  - name: PVE4
+    locations: "{{ foreman_location }}"
+    organizations:
+      - "{{ foreman_org }}"
+    provider: proxmox
+    url: "https://pve4.{{ domain }}:8006/api2/json"
+    user: root@pam
+    password: "{{ vault_pve4_password }}"
+    ssl_verify_peer: true
+    state: present
+
+# ============================================================
+# Compute profiles
+# ============================================================
+foreman_compute_profiles:
+  - name: PVE2 Default
+    state: present
+    compute_attributes:
+      - compute_resource: PVE2
+        vm_attrs:
+          type: qemu
+          node_id: pve2
+          config_attributes:
+            kvm: "1"
+            vga: std
+            scsihw: virtio-scsi-pci
+            bios: ovmf
+            cpu_type: host
+            sockets: "1"
+            cores: "2"
+            memory: "4096"
+            ostype: l26
+          interfaces_attributes:
+            "0":
+              id: net0
+              model: virtio
+              bridge: vmbr0
+              dhcp: "0"
+              dhcp6: "0"
+          volumes_attributes:
+            "0":
+              storage_type: hard_disk
+              storage: truenas
+              controller: virtio
+              device: "0"
+              cache: none
+              size: "32"
+              id: virtio0
+  - name: PVE3 Default
+    state: present
+    compute_attributes:
+      - compute_resource: PVE3
+        vm_attrs:
+          type: qemu
+          node_id: pve3
+          config_attributes:
+            kvm: "1"
+            vga: std
+            scsihw: virtio-scsi-pci
+            bios: ovmf
+            cpu_type: host
+            sockets: "1"
+            cores: "2"
+            memory: "4096"
+            ostype: l26
+          interfaces_attributes:
+            "0":
+              id: net0
+              model: virtio
+              bridge: vmbr0
+              dhcp: "0"
+              dhcp6: "0"
+          volumes_attributes:
+            "0":
+              storage_type: hard_disk
+              storage: truenas
+              controller: virtio
+              device: "0"
+              cache: none
+              size: "32"
+              id: virtio0
+  - name: PVE4 Default
+    state: present
+    compute_attributes:
+      - compute_resource: PVE4
+        vm_attrs:
+          type: qemu
+          node_id: pve4
+          config_attributes:
+            kvm: "1"
+            vga: std
+            scsihw: virtio-scsi-pci
+            bios: ovmf
+            cpu_type: host
+            sockets: "1"
+            cores: "2"
+            memory: "4096"
+            ostype: l26
+          interfaces_attributes:
+            "0":
+              id: net0
+              model: virtio
+              bridge: vmbr0
+              dhcp: "0"
+              dhcp6: "0"
+          volumes_attributes:
+            "0":
+              storage_type: hard_disk
+              storage: truenas
+              controller: virtio
+              device: "0"
+              cache: none
+              size: "32"
+              id: virtio0
+
+# ============================================================
+# Operating systems
+# ============================================================
+foreman_operatingsystems_deb:
+  - name: Debian
+    release_name: Bookworm
+    major: 12
+    state: present
+  - name: Debian
+    release_name: Trixie
+    major: 13
+    state: present
+
+foreman_operatingsystems_rh:
+  - name: Rocky
+    major: 9
+    partition_tables:
+      - EL SW Mirror
+      - EL Single Disk
+      - EL Single Disk UEFI
+    install_media:
+      - Rocky Linux
+    provisioning_templates:
+      host_init_config: Linux host_init_config default
+      PXELinux: Kickstart default PXELinux
+      PXEGrub: Kickstart default PXEGrub
+      PXEGrub2: Kickstart default PXEGrub2
+      iPXE: Kickstart default iPXE
+      provision: EL Base Script
+      finish: Kickstart default finish
+      user_data: Kickstart default user data
+    state: present
+
+foreman_partition_table_os_families:
+  - name: EL SW Mirror
+    family: Redhat
+  - name: EL Single Disk
+    family: Redhat
+  - name: EL Single Disk UEFI
+    family: Redhat
+
+foreman_installation_media:
+  - name: Rocky Linux
+    os_family: Redhat
+    operatingsystems:
+      - Rocky 9
+    path: "{{ foreman_url }}/pulp/content/{{ foreman_org | replace(',', '') | replace(' ', '_') }}/Library/custom/Rocky_9/Rocky_9_-_BaseOS_Kickstart"
+    locations:
+      - "{{ foreman_location }}"
+    organizations:
+      - "{{ foreman_org }}"
+    state: present
+
+# ============================================================
+# Global parameters
+# ============================================================
+foreman_global_parameters:
+  - name: allow-root-ssh
+    type: boolean
+    value: "true"
+    state: present
+
+# ============================================================
+# Host groups
+# ============================================================
+foreman_hostgroups:
+  - name: Rocky 9 Base
+    description: "Base Rocky 9 host group"
+    org: "{{ foreman_org }}"
+    locations:
+      - "{{ foreman_location }}"
+    lifecycle_env: Development
+    content_view: Rocky 9 x86_64
+    content_source: "{{ foreman_hostname }}"
+    environment: production
+    puppet_proxy: "{{ foreman_hostname }}"
+    puppet_ca_proxy: "{{ foreman_hostname }}"
+    openscap_proxy: "{{ foreman_hostname }}"
+    domain: "{{ domain }}"
+    subnet: Lab
+    realm: "{{ kerberos_realm }}"
+    architecture: x86_64
+    operatingsystem: "Rocky 9"
+    medium: "Rocky Linux"
+    ptable: "EL Single Disk UEFI"
+    pxe_loader: "PXELinux UEFI"
+    activation_keys: rocky9
+    state: present

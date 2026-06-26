@@ -1,0 +1,125 @@
+---
+# ============================================================
+# Foreman + Katello deployment — Rocky 9
+#
+# Phases:
+#   0. Storage expansion — add data disk via ProxMox API (optional)
+#   1. OS baseline       — infrabase roles (sshd, hardening, sysctl, etc.)
+#   1.5 LVM setup        — carve up data disk for Pulp / containers / pgsql
+#   2. IPA client        — enroll host into FreeIPA domain
+#   3. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
+#   4. Foreman install   — install Foreman + Katello via foreman-installer
+#   5. Foreman config    — configure Foreman via theforeman.foreman collection
+#
+# Usage — see Makefile for shorthand targets:
+#   make deploy          # full run
+#   make storage         # Phase 0 only — add disk + LVM
+#   make install         # Phase 4 only
+#   make config          # Phase 5 only
+# ============================================================
+
+
+# ============================================================
+# Phase 0 — ProxMox storage expansion (optional)
+# Skipped unless foreman_expand_storage: true in vars.yml.
+# Discovers VMID automatically by hostname, adds disk, detects new
+# block device, and sets proxmox_disk_device fact for Phase 1.5.
+# ============================================================
+- name: foreman - ProxMox storage expansion
+  hosts: foreman
+  gather_facts: true
+  become: true
+  tags: [storage]
+  roles:
+    - role: mgcdrd.infrabase.proxmox_disk
+      when: foreman_expand_storage | bool
+      vars:
+        proxmox_disk_api_host: "{{ foreman_proxmox_api_host }}"
+        proxmox_disk_api_password: "{{ vault_pve_password }}"
+        proxmox_disk_vm_name: "{{ foreman_hostname | split('.') | first }}"
+        proxmox_disk_slot: "{{ foreman_proxmox_data_disk }}"
+        proxmox_disk_storage: "{{ foreman_proxmox_storage }}"
+        proxmox_disk_size: "{{ foreman_proxmox_disk_size }}"
+        proxmox_disk_state: present
+
+
+# ============================================================
+# Phase 1 — OS baseline
+# ============================================================
+- name: foreman - OS baseline
+  hosts: foreman
+  become: true
+  tags: [baseline]
+  roles:
+    - role: mgcdrd.infrabase.sshd
+    - role: mgcdrd.infrabase.hardened_services
+    - role: mgcdrd.infrabase.sysctl
+    - role: mgcdrd.infrabase.secure_mounts
+    - role: mgcdrd.infrabase.login_banner
+    - role: mgcdrd.infrabase.auditd
+    - role: mgcdrd.infrabase.journald
+
+
+# ============================================================
+# Phase 1.5 — LVM setup
+# Creates /var/lib/pulp, /var/lib/containers, /var/lib/pgsql.
+# Uses proxmox_disk_device fact if Phase 0 ran, otherwise falls
+# back to foreman_data_disk_device from vars.yml.
+# Skipped if lvm_provision_vgs is empty.
+# ============================================================
+- name: foreman - LVM data disk setup
+  hosts: foreman
+  become: true
+  tags: [storage, lvm]
+  vars:
+    lvm_provision_vgs:
+      - vg: vg_foreman
+        pvs:
+          - "{{ proxmox_disk_device | default(foreman_data_disk_device) }}"
+  roles:
+    - role: mgcdrd.infrabase.lvm2_provision
+      when: foreman_data_disk_device is defined or proxmox_disk_device is defined
+
+
+# ============================================================
+# Phase 2 — IPA client enrollment
+# ============================================================
+- name: foreman - IPA client enrollment
+  hosts: foreman
+  become: true
+  tags: [ipa_client]
+  roles:
+    - role: mgcdrd.infrasvc.ipa_client
+
+
+# ============================================================
+# Phase 3 — SSL certificate (acme_sh)
+# ============================================================
+- name: foreman - SSL certificate
+  hosts: foreman
+  become: true
+  tags: [certs]
+  roles:
+    - role: mgcdrd.infrabase.acme_sh
+
+
+# ============================================================
+# Phase 4 — Foreman + Katello installation
+# ============================================================
+- name: foreman - install Foreman + Katello
+  hosts: foreman
+  become: true
+  tags: [foreman_install]
+  roles:
+    - role: mgcdrd.infrasvc.foreman_install
+
+
+# ============================================================
+# Phase 5 — Foreman configuration
+# ============================================================
+- name: foreman - configure Foreman
+  hosts: foreman
+  become: true
+  tags: [foreman_config]
+  roles:
+    - role: mgcdrd.infrasvc.foreman_config

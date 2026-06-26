@@ -1,0 +1,37 @@
+---
+stages:
+  - validate
+
+defaults:
+  tags:
+  - docker
+
+variables:
+  ANSIBLE_FORCE_COLOR: "1"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+.ansible-setup:
+  image: python:3.11-slim
+  cache:
+    key: ansible-deps
+    paths:
+      - .cache/pip/
+  before_script:
+    - pip install ansible ansible-lint --quiet
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.lab.example.com".insteadOf
+        "https://gitlab.lab.example.com"
+    - cp inventory/hosts.yml.example inventory/hosts.yml
+    - cp inventory/group_vars/foreman/vault.yml.example inventory/group_vars/foreman/vault.yml
+    - ansible-galaxy collection install -r collections/requirements.yml -p ./collections
+
+syntax-check:
+  extends: .ansible-setup
+  stage: validate
+  script:
+    - ansible-playbook site.yml --syntax-check
+
+lint:
+  extends: .ansible-setup
+  stage: validate
+  script:
+    - ansible-lint site.yml
