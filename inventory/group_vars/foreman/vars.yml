@@ -2,10 +2,7 @@
 #
 # foreman deployment — group vars
 # Secrets are in vault.yml (Vault-sourced at runtime).
-#
-# Lab-wide config (vault_addr, foreman, ipa_primary, etc.) comes from
-# DevOps_new/lab-env/env.yml passed at run time via Makefile (-e @lab-env).
-# Do not duplicate those values here.
+# Environment variables (domain, vault_addr, etc.) are in group_vars/all/env.yml.
 #
 
 # ============================================================
@@ -16,7 +13,7 @@
 # ============================================================
 foreman_expand_storage: true
 
-foreman_proxmox_api_host: "pve2.{{ domain }}"    # any PVE node — lab-env: domain
+foreman_proxmox_api_host: "pve2.{{ domain }}"    # any PVE node
 foreman_proxmox_data_disk: virtio1               # disk slot to add (must be free)
 foreman_proxmox_storage: truenas                 # PVE storage backend
 foreman_proxmox_disk_size: "400G"                # total size for the data disk
@@ -59,7 +56,7 @@ foreman_version: "3.19"
 foreman_katello_version: "4.21"
 foreman_puppet_release: "puppet8"
 
-foreman_hostname: "{{ foreman }}"         # lab-env: foreman
+foreman_hostname: "{{ foreman }}"
 foreman_url: "https://{{ foreman_hostname }}"
 
 foreman_org: "My Organization"
@@ -132,14 +129,14 @@ foreman_realm_ipa_authentication: "true"
 foreman_realm_ipa_authentication_api: "false"
 foreman_realm_proxy: "true"
 foreman_realm_provider: freeipa
-foreman_realm_principal: "svc-foreman-agent@{{ kerberos_realm }}"   # lab-env: kerberos_realm
+foreman_realm_principal: "svc-foreman-agent@{{ kerberos_realm }}"
 foreman_realm_freeipa_remove_dns: "false"
-foreman_ipa_controller: "{{ ipa_primary }}"                          # lab-env: ipa_primary
+foreman_ipa_controller: "{{ ipa_primary }}"
 
 # ============================================================
 # Puppet
 # ============================================================
-foreman_puppet_autosign_entries: "[*.{{ domain }}]"                 # lab-env: domain
+foreman_puppet_autosign_entries: "[*.{{ domain }}]"
 
 # ============================================================
 # SSL certificates (acme_sh — set foreman_custom_certs: true to use)
@@ -171,7 +168,7 @@ foreman_proxy_content_enable_ostree: true
 # ============================================================
 # Template sync (GitLab)
 # ============================================================
-foreman_template_gitlab_host: "{{ gitlab_url | regex_replace('^https?://', '') }}"   # lab-env: gitlab_url
+foreman_template_gitlab_host: "{{ gitlab_url | regex_replace('^https?://', '') }}"
 foreman_template_repo: "ssh://git@{{ foreman_template_gitlab_host }}/hardening/foreman-templates.git"
 foreman_template_import_associate: Always
 foreman_template_import_branch: main
@@ -429,7 +426,7 @@ foreman_activation_keys:
 # Domains
 # ============================================================
 foreman_domains:
-  - name: "{{ domain }}"                   # lab-env: domain
+  - name: "{{ domain }}"
     locations: "{{ foreman_location }}"
     organizations: "{{ foreman_org }}"
     state: present

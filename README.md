@@ -13,23 +13,24 @@ DHCP, TFTP, DNS, Discovery, OpenSCAP, or Realm in 3.19.
 
 - Rocky Linux 9 VM built and reachable via SSH
 - HashiCorp Vault running and populated (see Vault paths below)
-- `DevOps_new/lab-env/env.yml` present — provides lab-wide vars (domain, hostnames, Vault address)
 - Collections installed: `ansible-galaxy collection install -r collections/requirements.yml`
 
 
 ## First-time setup
 
-`hosts.yml` and `vault.yml` are gitignored. Copy the example files and populate them:
+Three files are gitignored and must be created from their examples:
 
 ```bash
 cp inventory/hosts.yml.example inventory/hosts.yml
+cp inventory/group_vars/all/env.yml.example inventory/group_vars/all/env.yml
 cp inventory/group_vars/foreman/vault.yml.example inventory/group_vars/foreman/vault.yml
 ```
 
-Edit `hosts.yml` — replace `foreman.example.com` with your Foreman FQDN.
+- **`hosts.yml`** — replace `foreman.example.com` with your Foreman FQDN
+- **`env.yml`** — set `domain`, `vault_addr`, `ipa_primary`, `kerberos_realm`, `gitlab_url`, and `foreman` hostname for your environment
+- **`vault.yml`** — replace `infra/<env>/` in every path with your Vault namespace (e.g. `infra/lab/`)
 
-Edit `vault.yml` — replace `infra/<env>/` in every path with your Vault namespace
-(e.g. `infra/lab/`). Then update `vars.yml` with your network values:
+Then update `vars.yml` with your network values:
 - `foreman_dhcp_interface` — NIC name
 - `foreman_dhcp_gateway` / `foreman_dhcp_range_*` / `foreman_dhcp_nameservers` — your subnet
 - `foreman_subnets` network block
