@@ -1,4 +1,4 @@
-LAB_ENV := ../../DevOps_new/lab-env/env.yml
+LAB_ENV := ../../../DevOps_new/lab-env/env.yml
 
 .PHONY: deploy storage lvm baseline ipa certs install config check list help
 
