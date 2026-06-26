@@ -1,0 +1,20 @@
+---
+collections:
+  - name: mgcdrd.infrabase
+    type: git
+    source: https://gitlab.lab.example.com/ansible/collections/infrabase.git
+    version: main
+
+  - name: mgcdrd.infrasvc
+    type: git
+    source: https://gitlab.lab.example.com/ansible/collections/infrasvc.git
+    version: main
+
+  - name: theforeman.foreman
+    version: ">=4.0.0"
+
+  - name: community.general
+    version: ">=8.0.0"
+
+  - name: community.hashi_vault
+    version: ">=6.0.0"

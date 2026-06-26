@@ -5,7 +5,8 @@ __pycache__/
 .env
 *.retry
 vault_pass*
-collections/
+collections/*
+!collections/requirements.yml
 
 # Environment-specific inventory — copy from *.example and populate locally
 inventory/hosts.yml
