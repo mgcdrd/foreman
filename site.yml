@@ -4,8 +4,7 @@
 #
 # Phases:
 #   0. Storage expansion — add data disk via ProxMox API (optional)
-#   1. OS baseline       — infrabase roles (sshd, hardening, sysctl, etc.)
-#   1.5 LVM setup        — carve up data disk for Pulp / containers / pgsql
+#   1. LVM setup         — carve up data disk for Pulp / containers / pgsql
 #   2. IPA client        — enroll host into FreeIPA domain
 #   3. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
 #   4. Foreman install   — install Foreman + Katello via foreman-installer
@@ -23,7 +22,7 @@
 # Phase 0 — ProxMox storage expansion (optional)
 # Skipped unless foreman_expand_storage: true in vars.yml.
 # Discovers VMID automatically by hostname, adds disk, detects new
-# block device, and sets proxmox_disk_device fact for Phase 1.5.
+# block device, and sets proxmox_disk_device fact for Phase 1.
 # ============================================================
 - name: foreman - ProxMox storage expansion
   hosts: foreman
@@ -44,26 +43,7 @@
 
 
 # ============================================================
-# Phase 1 — OS baseline
-# ============================================================
-- name: foreman - OS baseline
-  hosts: foreman
-  become: true
-  tags: [baseline]
-  roles:
-    - role: mgcdrd.infrabase.sshd
-      vars:
-        sshd_manage_package: false
-    - role: mgcdrd.infrabase.hardened_services
-    - role: mgcdrd.infrabase.sysctl
-    - role: mgcdrd.infrabase.secure_mounts
-    - role: mgcdrd.infrabase.login_banner
-    - role: mgcdrd.infrabase.auditd
-    - role: mgcdrd.infrabase.journald
-
-
-# ============================================================
-# Phase 1.5 — LVM setup
+# Phase 1 — LVM setup
 # Creates /var/lib/pulp, /var/lib/containers, /var/lib/pgsql.
 # Uses proxmox_disk_device fact if Phase 0 ran, otherwise falls
 # back to foreman_data_disk_device from vars.yml.
