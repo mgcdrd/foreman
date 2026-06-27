@@ -72,6 +72,14 @@
   tags: [ipa_client]
   roles:
     - role: mgcdrd.infrasvc.ipa_client
+      vars:
+        ipa_client_servers:           ["{{ ipa_primary }}"]
+        ipa_client_domain:            "{{ domain }}"
+        ipa_client_realm:             "{{ kerberos_realm }}"
+        ipa_client_validate_certs:    false
+        ipa_client_dns_register:      false
+        vault_ipa_enrollment_principal: "{{ vault_ipa_admin_user }}"
+        vault_ipa_enrollment_password:  "{{ vault_ipa_admin_password }}"
 
 
 # ============================================================
