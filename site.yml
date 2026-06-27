@@ -36,7 +36,7 @@
       vars:
         proxmox_disk_api_host: "{{ foreman_proxmox_api_host }}"
         proxmox_disk_api_password: "{{ vault_pve_password }}"
-        proxmox_disk_vm_name: "{{ foreman_hostname | split('.') | first }}"
+        proxmox_disk_vm_name: "{{ foreman_hostname }}"
         proxmox_disk_slot: "{{ foreman_proxmox_data_disk }}"
         proxmox_disk_storage: "{{ foreman_proxmox_storage }}"
         proxmox_disk_size: "{{ foreman_proxmox_disk_size }}"
