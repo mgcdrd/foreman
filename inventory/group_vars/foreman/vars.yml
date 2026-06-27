@@ -13,7 +13,7 @@
 # ============================================================
 foreman_expand_storage: true
 
-foreman_proxmox_api_host: "pve2.{{ domain }}"    # any PVE node
+foreman_proxmox_api_host: "pve4.{{ domain }}"    # any PVE node
 foreman_proxmox_data_disk: virtio1               # disk slot to add (must be free)
 foreman_proxmox_storage: truenas                 # PVE storage backend
 foreman_proxmox_disk_size: "400G"                # total size for the data disk
@@ -59,7 +59,7 @@ foreman_puppet_release: "puppet8"
 foreman_hostname: "{{ foreman }}"
 foreman_url: "https://{{ foreman_hostname }}"
 
-foreman_org: "My Organization"
+foreman_org: "PLCA"
 foreman_location: "LAB"
 
 foreman_username: "admin"
@@ -100,19 +100,19 @@ foreman_installer_further_enable:
 # ============================================================
 foreman_dhcp_enable: true
 foreman_dhcp_provider: isc
-foreman_dhcp_interface: eth0          # set to your NIC name
+foreman_dhcp_interface: ens18          # set to your NIC name
 foreman_dhcp_gateway: "192.0.2.1"
-foreman_dhcp_range_start: "192.0.2.100"
-foreman_dhcp_range_end: "192.0.2.200"
+foreman_dhcp_range_start: "192.0.2.2"
+foreman_dhcp_range_end: "192.0.2.10"
 foreman_dhcp_nameservers:
-  - "192.0.2.53"
+  - "192.0.2.11"
 
 # ============================================================
 # DNS (PowerDNS smart proxy)
 # ============================================================
 foreman_dns_enable: true
 foreman_dns_provider: powerdns
-foreman_pdns_api_url: "http://pdns.example.com:8081"
+foreman_pdns_api_url: "http://dns.lab.example.com:8081"
 
 # ============================================================
 # TFTP
@@ -146,11 +146,11 @@ foreman_cert_path: "/root/.acme.sh/{{ foreman_hostname }}/{{ foreman_hostname }}
 foreman_cert_key_path: "/root/.acme.sh/{{ foreman_hostname }}/{{ foreman_hostname }}.key"
 foreman_cert_ca_path: "/root/.acme.sh/{{ foreman_hostname }}/ca.cer"
 
-foreman_certs_city: Anytown
+foreman_certs_city: Knoxville
 foreman_certs_country: US
 foreman_certs_org: "My Organization"
 foreman_certs_org_unit: IT
-foreman_certs_state: NC
+foreman_certs_state: TN
 
 # ============================================================
 # Proxy content types
@@ -280,6 +280,11 @@ foreman_repos_rpm:
     url: https://yum.theforeman.org/client/3.19/el9/x86_64/
     mirror_on_sync: true
     download_policy: immediate
+  - name: Rocky 9 CRB
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/crb/x86_64/os/
+    mirror_on_sync: true
+    download_policy: immediate
   - name: Rocky 9 AppStream aarch64
     product: Rocky 9 aarch64
     url: https://dl.rockylinux.org/pub/rocky/9/AppStream/aarch64/os/
@@ -305,6 +310,12 @@ foreman_repos_rpm:
     url: https://yum.theforeman.org/client/3.19/el9/aarch64/
     mirror_on_sync: true
     download_policy: immediate
+  - name: Rocky 9 CRB aarch64
+    product: Rocky 9
+    url: https://dl.rockylinux.org/pub/rocky/9/crb/aarch64/os/
+    mirror_on_sync: true
+    download_policy: immediate
+
 
 # ============================================================
 # DEB Repositories
@@ -315,6 +326,7 @@ foreman_repos_deb:
     url: http://deb.debian.org/debian/
     deb_releases: bookworm
     deb_components: main
+    deb_architectures: arm64
     mirror_on_sync: true
     download_policy: immediate
   - name: Bookworm security
@@ -322,6 +334,7 @@ foreman_repos_deb:
     url: http://security.debian.org/debian-security
     deb_releases: bookworm-security
     deb_components: main
+    deb_architectures: arm64
     mirror_on_sync: true
     download_policy: immediate
   - name: Bookworm updates
@@ -329,6 +342,7 @@ foreman_repos_deb:
     url: http://deb.debian.org/debian/
     deb_releases: bookworm-updates
     deb_components: main
+    deb_architectures: arm64
     mirror_on_sync: true
     download_policy: immediate
   - name: Trixie main
@@ -336,6 +350,7 @@ foreman_repos_deb:
     url: http://deb.debian.org/debian/
     deb_releases: trixie
     deb_components: main
+    deb_architectures: arm64
     mirror_on_sync: true
     download_policy: immediate
   - name: Trixie security
@@ -343,6 +358,7 @@ foreman_repos_deb:
     url: http://security.debian.org/debian-security
     deb_releases: trixie-security
     deb_components: main
+    deb_architectures: arm64
     mirror_on_sync: true
     download_policy: immediate
   - name: Trixie updates
@@ -350,6 +366,7 @@ foreman_repos_deb:
     url: http://deb.debian.org/debian/
     deb_releases: trixie-updates
     deb_components: main
+    deb_architectures: arm64
     mirror_on_sync: true
     download_policy: immediate
 
@@ -357,29 +374,31 @@ foreman_repos_deb:
 # Architectures
 # ============================================================
 foreman_architectures:
-  - name: x86_64
+  - name:  x86_64
     state: present
-  - name: aarch64
+  - name:  aarch64
+    state: present
+  - name:  arm64
     state: present
 
 # ============================================================
 # Lifecycle environments
 # ============================================================
 foreman_lifecycle_envs:
-  - name: Development
+  - name:  Development
     state: present
-  - name: Stage
+  - name:  Stage
     state: present
-  - name: Production
+  - name:  Production
     state: present
 
 # ============================================================
 # Content views
 # ============================================================
 foreman_content_views:
-  - name: Rocky 9 x86_64
+  - name: Rocky 9
     org: "{{ foreman_org }}"
-    auto_publish: false
+    auto_publish: true
     solve_dependencies: true
     first_publish: true
     lifecycle_envs:
@@ -401,14 +420,34 @@ foreman_content_views:
         product: Rocky 9
     state: present
 
+  - name: Debian 12
+    org: "{{ foreman_org }}"
+    auto_publish: true
+    solve_dependencies: true
+    first_publish: true
+    lifecycle_envs:
+      - Development
+      - Stage
+      - Production
+    repos:
+      - name: Bookworm main
+        product: Debian 12
+      - name: Bookworm security
+        product: Debian 12
+      - name: Bookworm updates
+        product: Debian 12
+    state: present
+
+
+
 # ============================================================
 # Activation keys
 # ============================================================
 foreman_activation_keys:
-  - name: rocky9
+  - name: rocky9prd
     org: "{{ foreman_org }}"
-    lifecycle_env: Development
-    content_view: Rocky 9 x86_64
+    lifecycle_env: Production
+    content_view: Rocky 9
     unlimited_hosts: true
     auto_attach: true
     content_overrides:
@@ -438,9 +477,9 @@ foreman_subnets:
   - name: Lab
     description: "lab network"
     network: "192.0.2.0"
-    mask: "255.255.255.0"
+    mask: "255.255.255.128"
     gateway: "192.0.2.1"
-    dns_primary: "192.0.2.53"
+    dns_primary: "192.0.2.11"
     dns_secondary: "192.0.2.1"
     boot_mode: DHCP
     tftp_proxy: "{{ foreman_hostname }}"
@@ -485,6 +524,16 @@ foreman_compute_resources:
       - "{{ foreman_org }}"
     provider: proxmox
     url: "https://pve4.{{ domain }}:8006/api2/json"
+    user: root@pam
+    password: "{{ vault_pve4_password }}"
+    ssl_verify_peer: true
+    state: present
+  - name: PVE6
+    locations: "{{ foreman_location }}"
+    organizations:
+      - "{{ foreman_org }}"
+    provider: proxmox
+    url: "https://pve6.{{ domain }}:8006/api2/json"
     user: root@pam
     password: "{{ vault_pve4_password }}"
     ssl_verify_peer: true
@@ -567,6 +616,39 @@ foreman_compute_profiles:
         vm_attrs:
           type: qemu
           node_id: pve4
+          config_attributes:
+            kvm: "1"
+            vga: std
+            scsihw: virtio-scsi-pci
+            bios: ovmf
+            cpu_type: host
+            sockets: "1"
+            cores: "2"
+            memory: "4096"
+            ostype: l26
+          interfaces_attributes:
+            "0":
+              id: net0
+              model: virtio
+              bridge: vmbr0
+              dhcp: "0"
+              dhcp6: "0"
+          volumes_attributes:
+            "0":
+              storage_type: hard_disk
+              storage: truenas
+              controller: virtio
+              device: "0"
+              cache: none
+              size: "32"
+              id: virtio0
+  - name: PVE6 Default
+    state: present
+    compute_attributes:
+      - compute_resource: PVE6
+        vm_attrs:
+          type: qemu
+          node_id: pve6
           config_attributes:
             kvm: "1"
             vga: std
