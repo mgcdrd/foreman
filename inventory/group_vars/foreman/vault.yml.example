@@ -5,23 +5,23 @@
 # Copy this file to vault.yml and update the Vault paths to match your environment.
 # vault.yml is gitignored — never commit it with real paths.
 
-vault_foreman_admin_username: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/foreman', engine_mount_point='kv1', url=vault_addr).secret.admin_username }}"
-vault_foreman_admin_password: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/foreman', engine_mount_point='kv1', url=vault_addr).secret.admin_password }}"
-vault_foreman_db_password:    "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/foreman', engine_mount_point='kv1', url=vault_addr).secret.db_password }}"
-vault_foreman_host_root_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/foreman', engine_mount_point='kv1', url=vault_addr).secret.host_root_pass }}"
+vault_foreman_admin_username: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/foreman', engine_mount_point='infra', url=vault_addr).secret.admin_username }}"
+vault_foreman_admin_password: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/foreman', engine_mount_point='infra', url=vault_addr).secret.admin_password }}"
+vault_foreman_db_password:    "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/foreman', engine_mount_point='infra', url=vault_addr).secret.db_password }}"
+vault_foreman_host_root_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/foreman', engine_mount_point='infra', url=vault_addr).secret.host_root_pass }}"
 
-vault_ipa_admin_user:     "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/ipa/domain_admin', engine_mount_point='kv1', url=vault_addr).secret.username }}"
-vault_ipa_admin_password: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/ipa/domain_admin', engine_mount_point='kv1', url=vault_addr).secret.password }}"
+vault_ipa_admin_user:     "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/ipa/domain_admin', engine_mount_point='infra', url=vault_addr).secret.username }}"
+vault_ipa_admin_password: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/ipa/domain_admin', engine_mount_point='infra', url=vault_addr).secret.password }}"
 
-vault_pdns_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/pdns', engine_mount_point='kv1', url=vault_addr).secret.api_key }}"
+vault_pdns_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/pdns', engine_mount_point='infra', url=vault_addr).secret.api_key }}"
 
-vault_pve2_password: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/proxmox/root', engine_mount_point='kv1', url=vault_addr).secret.pve2_password }}"
-vault_pve3_password: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/proxmox/root', engine_mount_point='kv1', url=vault_addr).secret.pve3_password }}"
-vault_pve4_password: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/proxmox/root', engine_mount_point='kv1', url=vault_addr).secret.pve4_password }}"
+vault_pve2_password: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/proxmox/root', engine_mount_point='infra', url=vault_addr).secret.pve2_password }}"
+vault_pve3_password: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/proxmox/root', engine_mount_point='infra', url=vault_addr).secret.pve3_password }}"
+vault_pve4_password: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/proxmox/root', engine_mount_point='infra', url=vault_addr).secret.pve4_password }}"
 
 # Password for whichever PVE node hosts the Foreman VM (Phase 0 disk expansion).
 # Set foreman_proxmox_node in vars.yml to match — the lookup key matches that node.
-vault_pve_password: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/proxmox/root', engine_mount_point='kv1', url=vault_addr).secret[foreman_proxmox_node + '_password'] }}"
+vault_pve_password: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/proxmox/root', engine_mount_point='infra', url=vault_addr).secret[foreman_proxmox_node + '_password'] }}"
 
 # Uncomment once AWX job templates are created:
-# vault_awx_host_config_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infra/<env>/awx/host_callback', engine_mount_point='kv1', url=vault_addr).secret.host_config_key }}"
+# vault_awx_host_config_key: "{{ lookup('community.hashi_vault.vault_kv2_get', '<env>/awx/host_callback', engine_mount_point='infra', url=vault_addr).secret.host_config_key }}"

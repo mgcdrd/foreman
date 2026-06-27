@@ -13,6 +13,7 @@
 # ============================================================
 foreman_expand_storage: true
 
+foreman_proxmox_node: pve4                        # PVE node hosting the VM
 foreman_proxmox_api_host: "pve4.{{ domain }}"    # any PVE node
 foreman_proxmox_data_disk: virtio1               # disk slot to add (must be free)
 foreman_proxmox_storage: truenas                 # PVE storage backend
