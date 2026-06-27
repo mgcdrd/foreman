@@ -17,7 +17,7 @@ foreman_proxmox_node: pve4                        # PVE node hosting the VM
 foreman_proxmox_api_host: "pve4.{{ domain }}"    # any PVE node
 foreman_proxmox_data_disk: virtio1               # disk slot to add (must be free)
 foreman_proxmox_storage: truenas                 # PVE storage backend
-foreman_proxmox_disk_size: "400G"                # total size for the data disk
+foreman_proxmox_disk_size: "400"                  # GiB, no suffix for state=present; use +XG suffix only for state=resized
 
 # Fallback device if foreman_expand_storage: false and disk already exists.
 # virtio1 → /dev/vdb, scsi1 → /dev/sdb, etc.
