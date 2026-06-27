@@ -91,6 +91,15 @@
   tags: [certs]
   roles:
     - role: mgcdrd.infrabase.acme_sh
+      vars:
+        acme_sh_email:     "{{ vault_acme_email }}"
+        acme_sh_cf_token:  "{{ vault_acme_cf_token }}"
+        acme_sh_certs:
+          - domains:
+              - "{{ foreman_hostname }}"
+            challenge: dns_cf
+            reload_cmd: "systemctl reload httpd || true"
+            state: present
 
 
 # ============================================================
