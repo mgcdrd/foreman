@@ -5,10 +5,13 @@
 # Phases:
 #   0. Storage expansion — add data disk via ProxMox API (optional)
 #   1. LVM setup         — carve up data disk for Pulp / containers / pgsql
-#   2. IPA client        — enroll host into FreeIPA domain
-#   3. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
-#   4. Foreman install   — install Foreman + Katello via foreman-installer
-#   5. Foreman config    — configure Foreman via theforeman.foreman collection
+#   2. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
+#   3. Foreman install   — install Foreman + Katello via foreman-installer
+#   4. Foreman config    — configure Foreman via theforeman.foreman collection
+#
+# Note: the Foreman host is assumed to be an existing IPA domain member.
+# IPA work (HTTP service principal, foreman-proxy keytab) is handled
+# within the foreman_install role (tasks/ipa.yml), not by ipa_client.
 #
 # Usage — see Makefile for shorthand targets:
 #   make deploy          # full run
@@ -64,26 +67,7 @@
 
 
 # ============================================================
-# Phase 2 — IPA client enrollment
-# ============================================================
-- name: foreman - IPA client enrollment
-  hosts: foreman
-  become: true
-  tags: [ipa_client]
-  roles:
-    - role: mgcdrd.infrasvc.ipa_client
-      vars:
-        ipa_client_servers:           ["{{ ipa_primary }}"]
-        ipa_client_domain:            "{{ domain }}"
-        ipa_client_realm:             "{{ kerberos_realm }}"
-        ipa_client_validate_certs:    false
-        ipa_client_dns_register:      false
-        vault_ipa_enrollment_principal: "{{ vault_ipa_admin_user }}"
-        vault_ipa_enrollment_password:  "{{ vault_ipa_admin_password }}"
-
-
-# ============================================================
-# Phase 3 — SSL certificate (acme_sh)
+# Phase 2 — SSL certificate (acme_sh)
 # ============================================================
 - name: foreman - SSL certificate
   hosts: foreman
@@ -103,7 +87,7 @@
 
 
 # ============================================================
-# Phase 4 — Foreman + Katello installation
+# Phase 3 — Foreman + Katello installation
 # ============================================================
 - name: foreman - install Foreman + Katello
   hosts: foreman
@@ -114,7 +98,7 @@
 
 
 # ============================================================
-# Phase 5 — Foreman configuration
+# Phase 4 — Foreman configuration
 # ============================================================
 - name: foreman - configure Foreman
   hosts: foreman
