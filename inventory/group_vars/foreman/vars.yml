@@ -142,10 +142,13 @@ foreman_puppet_autosign_entries: "[*.{{ domain }}]"
 # ============================================================
 # SSL certificates (acme_sh — set foreman_custom_certs: true to use)
 # ============================================================
+foreman_installer_tuning: development
+foreman_installer_skip_checks: true
+
 foreman_custom_certs: true
-foreman_cert_path: "/root/.acme.sh/{{ foreman_hostname }}/{{ foreman_hostname }}.cer"
-foreman_cert_key_path: "/root/.acme.sh/{{ foreman_hostname }}/{{ foreman_hostname }}.key"
-foreman_cert_ca_path: "/root/.acme.sh/{{ foreman_hostname }}/ca.cer"
+foreman_cert_path: "/etc/ssl/acme/{{ foreman_hostname }}/cert.pem"
+foreman_cert_key_path: "/etc/ssl/acme/{{ foreman_hostname }}/key.pem"
+foreman_cert_ca_path: "/etc/ssl/acme/{{ foreman_hostname }}/ca.pem"
 
 foreman_certs_city: Knoxville
 foreman_certs_country: US
