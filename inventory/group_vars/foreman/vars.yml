@@ -55,7 +55,7 @@ lvm_provision_volumes:
 # ============================================================
 foreman_version: "3.19"
 foreman_katello_version: "4.21"
-foreman_puppet_release: "puppet8"
+foreman_puppet_release: "openvox8"
 
 foreman_hostname: "{{ foreman }}"
 foreman_url: "https://{{ foreman_hostname }}"
@@ -174,7 +174,7 @@ foreman_proxy_content_enable_ostree: true
 # ============================================================
 foreman_template_gitlab_host: "{{ gitlab_url | regex_replace('^https?://', '') }}"
 foreman_template_repo: "ssh://git@{{ foreman_template_gitlab_host }}/hardening/foreman-templates.git"
-foreman_template_import_associate: Always
+foreman_template_import_associate: always
 foreman_template_import_branch: main
 foreman_template_import_dirname: "/"
 foreman_template_import_filter: "EL.*|el.*|freeipa.*|kickstart_repos.*"

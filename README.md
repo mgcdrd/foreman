@@ -109,7 +109,7 @@ Lifecycle: `Library → Development → Stage → Production`
 
 ## Plugins enabled
 
-Ansible, Bootdisk, Discovery, OpenSCAP, ProxMox compute, Puppet (puppet8),
+Ansible, Bootdisk, Discovery, OpenSCAP, ProxMox compute, Puppet (OpenVox 8),
 Remote Execution, Templates, Vault
 
 
