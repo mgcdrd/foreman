@@ -241,6 +241,17 @@ foreman_repo_products:
     state: present
 
 # ============================================================
+# GPG content credentials
+# Keys are pulled from an already-enrolled Rocky 9 host's trusted local
+# copy (/etc/pki/rpm-gpg/), not fetched fresh over the network.
+# EPEL and the Foreman client repo use their own upstream keys and are not
+# yet wired up here — see CIS-Rocky9-ScanFindings wiki page.
+# ============================================================
+foreman_gpg_keys:
+  - name: RPM-GPG-KEY-Rocky-9
+    file: RPM-GPG-KEY-Rocky-9
+
+# ============================================================
 # RPM Repositories
 # ============================================================
 foreman_repos_rpm:
@@ -249,26 +260,31 @@ foreman_repos_rpm:
     url: https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 AppStream Kickstart
     product: Rocky 9
     url: https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/kickstart/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 BaseOS
     product: Rocky 9
     url: https://dl.rockylinux.org/pub/rocky/9/BaseOS/x86_64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 BaseOS Kickstart
     product: Rocky 9
     url: https://dl.rockylinux.org/pub/rocky/9/BaseOS/x86_64/kickstart/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 Devel
     product: Rocky 9
     url: https://dl.rockylinux.org/pub/rocky/9/Devel/x86_64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 EPEL
     product: Rocky 9
     url: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
@@ -279,6 +295,7 @@ foreman_repos_rpm:
     url: https://dl.rockylinux.org/pub/rocky/9/extras/x86_64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 Foreman Client
     product: Rocky 9
     url: https://yum.theforeman.org/client/3.19/el9/x86_64/
@@ -289,16 +306,19 @@ foreman_repos_rpm:
     url: https://dl.rockylinux.org/pub/rocky/9/crb/x86_64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 AppStream aarch64
     product: Rocky 9 aarch64
     url: https://dl.rockylinux.org/pub/rocky/9/AppStream/aarch64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 BaseOS aarch64
     product: Rocky 9 aarch64
     url: https://dl.rockylinux.org/pub/rocky/9/BaseOS/aarch64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 EPEL aarch64
     product: Rocky 9 aarch64
     url: https://dl.fedoraproject.org/pub/epel/9/Everything/aarch64/
@@ -309,6 +329,7 @@ foreman_repos_rpm:
     url: https://dl.rockylinux.org/pub/rocky/9/Devel/aarch64/os/
     mirror_on_sync: true
     download_policy: immediate
+    gpg_key: RPM-GPG-KEY-Rocky-9
   - name: Rocky 9 Foreman Client aarch64
     product: Rocky 9 aarch64
     url: https://yum.theforeman.org/client/3.19/el9/aarch64/
