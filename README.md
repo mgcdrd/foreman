@@ -12,8 +12,16 @@ DHCP, TFTP, DNS, Discovery, OpenSCAP, or Realm in 3.19.
 ## Prerequisites
 
 - Rocky Linux 9 VM built and reachable via SSH
+- Host enrolled in the FreeIPA domain
+- IPA service account named in `foreman_realm_principal` (default
+  `svc-foreman-agent`) created with a role granting host-management
+  privileges — the equivalent of `foreman-prepare-realm`'s `realm-proxy` user
 - HashiCorp Vault running and populated (see Vault paths below)
 - Collections installed: `ansible-galaxy collection install -r collections/requirements.yml`
+
+If the VM was previously registered to another Foreman/Katello as a content
+host, the install preflight unregisters it and re-enables the standard Rocky
+repos automatically.
 
 
 ## First-time setup
@@ -42,12 +50,14 @@ Then update `vars.yml` with your network values:
 | Phase | Make target | What it does |
 |-------|-------------|--------------|
 | 0 | `make storage` | Add 400G data disk via ProxMox API, detect block device |
-| 1 | `make baseline` | OS hardening — sshd, sysctl, auditd, secure mounts, journald |
-| 1.5 | `make lvm` | Carve data disk into LVM volumes for Pulp, containers, pgsql |
-| 2 | `make ipa` | Enroll host in FreeIPA domain |
-| 3 | `make certs` | Obtain TLS cert via ACME (Cloudflare DNS-01) |
-| 4 | `make install` | Run `foreman-installer-katello` (~20 min) |
-| 5 | `make config` | Configure Foreman via API (content, infra, provisioning, host groups) |
+| 1 | `make lvm` | Carve data disk into LVM volumes for Pulp, containers, pgsql |
+| 2 | `make certs` | Obtain TLS cert via ACME (Cloudflare DNS-01) |
+| 3 | `make install` | Run `foreman-installer-katello` (~20 min) |
+| 4 | `make config` | Configure Foreman via API (content, infra, provisioning, host groups) |
+
+OS hardening and FreeIPA enrollment are **not** part of this playbook — the
+host is assumed to be hardened (see `deployments/harden`) and already an IPA
+domain member before `make deploy`.
 
 Full run: `make deploy`
 
@@ -79,7 +89,7 @@ Phase 5 sub-targets for partial re-runs:
 | Foreman admin + DB | `infra/lab/foreman` | `admin_username`, `admin_password`, `db_password`, `host_root_pass` |
 | IPA domain admin | `infra/lab/ipa/domain_admin` | `username`, `password` |
 | PowerDNS API | `infra/lab/pdns` | `api_key` |
-| ProxMox nodes | `infra/lab/proxmox/root` | `pve2_password`, `pve3_password`, `pve4_password` |
+| ProxMox nodes | `infra/lab/proxmox/root` | `pve2_password`, `pve3_password`, `pve4_password`, `pve6_password` |
 | AWX callback | `infra/lab/awx/host_callback` | `host_config_key` |
 
 
@@ -97,6 +107,15 @@ by hostname). Phase 1.5 partitions it with LVM:
 Set `foreman_expand_storage: false` in `vars.yml` to skip Phase 0 if the disk
 was pre-provisioned in PVE (Phase 1.5 falls back to `/dev/vdb`).
 
+
+## Certificate renewal
+
+The web cert is an RSA 2048 Let's Encrypt cert (`acme_sh` role,
+`complete_chain: true`): `ca.pem` carries the full chain rooted with ISRG
+Root X1 so `katello-certs-check` accepts it. On each acme.sh auto-renewal the
+registered hook re-roots the copied chain (`complete-le-chain.sh`) and pushes
+it through `foreman-installer --certs-update-server` via
+`/usr/local/sbin/foreman-cert-renewal.sh`. No `fullchain.pem` is deployed.
 
 ## Content managed
 

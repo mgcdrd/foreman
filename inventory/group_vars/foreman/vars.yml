@@ -113,7 +113,7 @@ foreman_dhcp_nameservers:
 # ============================================================
 foreman_dns_enable: true
 foreman_dns_provider: powerdns
-foreman_pdns_api_url: "http://dns.lab.example.com:8081"
+foreman_pdns_api_url: "http://dns.{{ domain }}:8081"
 
 # ============================================================
 # TFTP
@@ -560,7 +560,7 @@ foreman_compute_resources:
     provider: proxmox
     url: "https://pve6.{{ domain }}:8006/api2/json"
     user: root@pam
-    password: "{{ vault_pve4_password }}"
+    password: "{{ vault_pve6_password }}"
     ssl_verify_peer: true
     state: present
 
@@ -773,7 +773,7 @@ foreman_hostgroups:
     locations:
       - "{{ foreman_location }}"
     lifecycle_env: Development
-    content_view: Rocky 9 x86_64
+    content_view: Rocky 9
     content_source: "{{ foreman_hostname }}"
     environment: production
     puppet_proxy: "{{ foreman_hostname }}"
@@ -787,5 +787,5 @@ foreman_hostgroups:
     medium: "Rocky Linux"
     ptable: "EL Single Disk UEFI"
     pxe_loader: "PXELinux UEFI"
-    activation_keys: rocky9
+    activation_keys: rocky9prd
     state: present

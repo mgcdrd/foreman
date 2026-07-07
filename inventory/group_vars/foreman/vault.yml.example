@@ -19,6 +19,7 @@ vault_pdns_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_e
 vault_pve2_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve2_password }}"
 vault_pve3_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve3_password }}"
 vault_pve4_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve4_password }}"
+vault_pve6_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve6_password }}"
 
 # Password for whichever PVE node hosts the Foreman VM (Phase 0 disk expansion).
 # Set foreman_proxmox_node in vars.yml to match — the lookup key matches that node.

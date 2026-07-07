@@ -12,3 +12,4 @@ collections/*
 inventory/hosts.yml
 inventory/group_vars/*/vault.yml
 inventory/group_vars/*/env.yml
+ansible.cfg

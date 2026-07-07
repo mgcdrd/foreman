@@ -83,7 +83,19 @@
           - domains:
               - "{{ foreman_hostname }}"
             challenge: dns_cf
-            reload_cmd: "systemctl reload httpd || true"
+            # RSA cert with ca.pem rooted to ISRG Root X1 — katello-certs
+            # validates the chain to a self-contained root.
+            keylength: "2048"
+            complete_chain: true
+            # On renewal: re-root the copied chain, then push it through the
+            # installer (foreman-cert-renewal.sh, deployed by foreman_install).
+            # Both are no-ops before Foreman is installed.
+            reload_cmd: >-
+              /usr/local/sbin/complete-le-chain.sh
+              -f /etc/ssl/acme/{{ foreman_hostname }}/ca.pem
+              -l /etc/ssl/acme/{{ foreman_hostname }}/cert.pem &&
+              { test -x /usr/local/sbin/foreman-cert-renewal.sh &&
+              /usr/local/sbin/foreman-cert-renewal.sh || true; }
             state: present
 
 

@@ -1,4 +1,4 @@
-.PHONY: deploy storage lvm baseline ipa certs install config check list help
+.PHONY: deploy storage lvm certs install config syncplans repos lifecycle infra provisioning hostgroups check list help
 
 deploy:
 	ansible-playbook site.yml
@@ -8,12 +8,6 @@ storage:
 
 lvm:
 	ansible-playbook site.yml --tags lvm
-
-baseline:
-	ansible-playbook site.yml --tags baseline
-
-ipa:
-	ansible-playbook site.yml --tags ipa_client
 
 certs:
 	ansible-playbook site.yml --tags certs
@@ -50,6 +44,6 @@ list:
 	ansible-playbook site.yml --list-tasks
 
 help:
-	@echo "Targets: deploy storage lvm baseline ipa certs install config"
+	@echo "Targets: deploy storage lvm certs install config"
 	@echo "         syncplans repos lifecycle infra provisioning hostgroups"
 	@echo "         check list"
