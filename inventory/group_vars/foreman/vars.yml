@@ -190,7 +190,7 @@ foreman_template_settings:
   - name: template_sync_dirname
     value: "/"
   - name: template_sync_filter
-    value: "EL.*|el.*|freeipa.*|kickstart_repos.*"
+    value: "EL.*|el.*|freeipa.*|f42.*|debian preseed.*|debian disk|cloudInit cu"
   - name: template_sync_force
     value: "yes"
   - name: template_sync_repo
@@ -726,7 +726,7 @@ foreman_operatingsystems_rh:
     provisioning_templates:
       host_init_config: Linux host_init_config default
       PXELinux: Kickstart default PXELinux
-      PXEGrub: Kickstart default PXEGrub
+      # PXEGrub (legacy GRUB 0.97) templates no longer ship as of Foreman 3.19
       PXEGrub2: Kickstart default PXEGrub2
       iPXE: Kickstart default iPXE
       provision: EL Base Script
