@@ -18,6 +18,7 @@ DHCP, TFTP, DNS, Discovery, OpenSCAP, or Realm in 3.19.
   privileges — the equivalent of `foreman-prepare-realm`'s `realm-proxy` user
 - HashiCorp Vault running and populated (see Vault paths below)
 - Collections installed: `ansible-galaxy collection install -r collections/requirements.yml`
+- Shared environment constants pulled: `make bootstrap-common` (see below)
 
 If the VM was previously registered to another Foreman/Katello as a content
 host, the install preflight unregisters it and re-enables the standard Rocky
@@ -26,7 +27,21 @@ repos automatically.
 
 ## First-time setup
 
-Three files are gitignored and must be created from their examples:
+Pull the shared, non-secret environment constants (`domain`, `vault_addr`,
+`ipa_primary`, `kerberos_realm`, `gitlab_url`, `vault_kv_*`) from the central
+[inventory-common](https://gitlab.lab.example.com/ansible/inventory-common)
+repo:
+
+```bash
+make bootstrap-common                # defaults to COMMON_ENV=lab
+# make bootstrap-common COMMON_ENV=customer-acme   # for a customer engagement
+```
+
+This symlinks `inventory/group_vars/all/00-common.yml` into a gitignored local
+clone. It's committed, the clone isn't — same pattern as
+`collections/requirements.yml`.
+
+Three more files are gitignored and must be created from their examples:
 
 ```bash
 cp inventory/hosts.yml.example inventory/hosts.yml
@@ -35,7 +50,8 @@ cp inventory/group_vars/foreman/vault.yml.example inventory/group_vars/foreman/v
 ```
 
 - **`hosts.yml`** — replace `foreman.example.com` with your Foreman FQDN
-- **`env.yml`** — set `domain`, `vault_addr`, `ipa_primary`, `kerberos_realm`, `gitlab_url`, and `foreman` hostname for your environment
+- **`env.yml`** — set the `foreman` hostname; only override `domain`/`vault_addr`/etc.
+  here if this deployment must differ from inventory-common's value
 - **`vault.yml`** — replace `infra/<env>/` in every path with your Vault namespace (e.g. `infra/lab/`)
 
 Then update `vars.yml` with your network values:

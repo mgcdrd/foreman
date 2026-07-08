@@ -8,6 +8,11 @@ vault_pass*
 collections/*
 !collections/requirements.yml
 
+# Shared environment constants — pulled via `make bootstrap-common`.
+# inventory/group_vars/all/00-common.yml is a symlink into this clone and
+# IS tracked (like collections/requirements.yml, not the collections it pulls).
+inventory-common/
+
 # Environment-specific files — copy from *.example and populate locally
 inventory/hosts.yml
 inventory/group_vars/*/vault.yml
