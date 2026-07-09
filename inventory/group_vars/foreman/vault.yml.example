@@ -10,6 +10,7 @@ vault_foreman_admin_username: "{{ lookup('community.hashi_vault.vault_kv2_get', 
 vault_foreman_admin_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/foreman', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.admin_password }}"
 vault_foreman_db_password:    "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/foreman', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.db_password }}"
 vault_foreman_host_root_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/foreman', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.host_root_pass }}"
+vault_foreman_realm_agent_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/foreman', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.realm_agent_password }}"
 
 vault_ipa_admin_user:     "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/ipa/domain_admin', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.username }}"
 vault_ipa_admin_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/ipa/domain_admin', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.password }}"
