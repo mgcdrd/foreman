@@ -797,3 +797,13 @@ foreman_hostgroups:
     pxe_loader: "PXELinux UEFI"
     activation_keys: rocky9prd
     state: present
+
+# ============================================================
+# Users and Groups
+# ============================================================
+foreman_usergroups:
+  - name: allow_full_sudo
+    auth_source: External
+    usergroup: admins
+    state: present
+    isadmin: true
