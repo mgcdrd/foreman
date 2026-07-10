@@ -1,6 +1,0 @@
----
-all:
-  children:
-    foreman:
-      hosts:
-        foreman.example.com:

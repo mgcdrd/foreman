@@ -21,7 +21,7 @@ DHCP, TFTP, DNS, Discovery, OpenSCAP, or Realm in 3.19.
   its own Kerberos keytab; no admin privilege is needed for that step.
 - HashiCorp Vault running and populated (see Vault paths below)
 - Collections installed: `ansible-galaxy collection install -r collections/requirements.yml`
-- Shared environment constants pulled: `make bootstrap-common` (see below)
+- `../../inventory-common` cloned as a sibling of `deployments/` (see below)
 
 If the VM was previously registered to another Foreman/Katello as a content
 host, the install preflight unregisters it and re-enables the standard Rocky
@@ -30,31 +30,34 @@ repos automatically.
 
 ## First-time setup
 
-Pull the shared, non-secret environment constants (`domain`, `vault_addr`,
-`ipa_primary`, `kerberos_realm`, `gitlab_url`, `vault_kv_*`) from the central
-[inventory-common](https://gitlab.lab.example.com/ansible/inventory-common)
-repo:
+This deployment has no `hosts.yml`/`group_vars/all.yml` of its own — the
+`foreman` group, its host, and shared environment constants (`domain`,
+`vault_addr`, `ipa_primary`, `kerberos_realm`, `gitlab_url`, `vault_kv_*`,
+`ansible_user`, `rsyslog_remote_*`) all come from
+[inventory-common](https://gitlab.lab.example.com/ansible/inventory-common),
+referenced as a second inventory source in `ansible.cfg`. Clone it as a
+sibling of `deployments/`:
 
 ```bash
-make bootstrap-common                # defaults to COMMON_ENV=lab
-# make bootstrap-common COMMON_ENV=customer-acme   # for a customer engagement
+git clone https://gitlab.lab.example.com/ansible/inventory-common.git ../../inventory-common
 ```
 
-This symlinks `inventory/group_vars/all/00-common.yml` into a gitignored local
-clone. It's committed, the clone isn't — same pattern as
-`collections/requirements.yml`.
+Add the host under the `foreman` group in `../../inventory-common/hosts.yml`
+if it isn't there yet — see that repo's README for the tier rule on what
+belongs there versus here. For a customer engagement, point at a
+`inventory-<client>` repo (cloned from `inventory-template`) instead, and
+update `ansible.cfg`'s inventory path accordingly.
 
-Three more files are gitignored and must be created from their examples:
+Two files are gitignored and must be created from their examples:
 
 ```bash
-cp inventory/hosts.yml.example inventory/hosts.yml
 cp inventory/group_vars/all/env.yml.example inventory/group_vars/all/env.yml
 cp inventory/group_vars/foreman/vault.yml.example inventory/group_vars/foreman/vault.yml
 ```
 
-- **`hosts.yml`** — replace `foreman.example.com` with your Foreman FQDN
-- **`env.yml`** — set the `foreman` hostname; only override `domain`/`vault_addr`/etc.
-  here if this deployment must differ from inventory-common's value
+- **`env.yml`** — set the `foreman` hostname to match what you added to
+  `inventory-common/hosts.yml`; only override `domain`/`vault_addr`/etc. here
+  if this deployment must differ from the shared environment
 - **`vault.yml`** — replace `infra/<env>/` in every path with your Vault namespace (e.g. `infra/lab/`)
 
 Then update `vars.yml` with your network values:
