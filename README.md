@@ -15,7 +15,10 @@ DHCP, TFTP, DNS, Discovery, OpenSCAP, or Realm in 3.19.
 - Host enrolled in the FreeIPA domain
 - IPA service account named in `foreman_realm_principal` (default
   `svc-foreman-agent`) created with a role granting host-management
-  privileges — the equivalent of `foreman-prepare-realm`'s `realm-proxy` user
+  privileges — the equivalent of `foreman-prepare-realm`'s `realm-proxy`
+  user — **and a password set** (stored in Vault as `realm_agent_password`).
+  The install role kinits as this account itself and self-service-fetches
+  its own Kerberos keytab; no admin privilege is needed for that step.
 - HashiCorp Vault running and populated (see Vault paths below)
 - Collections installed: `ansible-galaxy collection install -r collections/requirements.yml`
 - Shared environment constants pulled: `make bootstrap-common` (see below)
@@ -102,11 +105,23 @@ Phase 5 sub-targets for partial re-runs:
 
 | What | Path | Keys |
 |------|------|------|
-| Foreman admin + DB | `infra/lab/foreman` | `admin_username`, `admin_password`, `db_password`, `host_root_pass` |
+| Foreman admin + DB | `infra/lab/foreman` | `admin_username`, `admin_password`, `db_password`, `host_root_pass`, `realm_agent_password`, `template_sync_ssh_private_key`, `template_sync_ssh_public_key` |
 | IPA domain admin | `infra/lab/ipa/domain_admin` | `username`, `password` |
 | PowerDNS API | `infra/lab/pdns` | `api_key` |
-| ProxMox nodes | `infra/lab/proxmox/root` | `pve2_password`, `pve3_password`, `pve4_password`, `pve6_password` |
-| AWX callback | `infra/lab/awx/host_callback` | `host_config_key` |
+| ProxMox nodes | `infra/lab/proxmox/root` | one `<node>_password` key per compute node referenced in `vars.yml` (e.g. `pve2_password`) |
+| ACME / Cloudflare | `infra/lab/acme` | `email`, `cf_key`, `cf_email` (legacy Cloudflare Global API Key mode) |
+| AWX callback | `infra/lab/awx/host_callback` | `host_config_key` (optional — only needed once AWX job templates exist) |
+
+`realm_agent_password` is the password for the IPA account named in
+`foreman_realm_principal` — the role kinits as that account itself to
+self-service-fetch its own Kerberos keytab, so this account needs both a
+role granting host-management privileges **and** a working password (see
+Prerequisites above). `template_sync_ssh_private_key` /
+`..._public_key` are a persistent ed25519 keypair for the `foreman` OS
+user's GitLab access — generate once with `ssh-keygen -t ed25519 -N '' -f <file>`
+and register the public half as a deploy key on the templates project. Both
+survive host rebuilds since they're deployed from Vault rather than
+generated per-host.
 
 
 ## Storage layout

@@ -28,8 +28,11 @@ vault_pve6_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_
 # Set foreman_proxmox_node in vars.yml to match — the lookup key matches that node.
 vault_pve_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret[foreman_proxmox_node + '_password'] }}"
 
+# site.yml wires acme_sh_cf_key / acme_sh_cf_email (legacy Cloudflare Global
+# API Key mode), not the token-based mode — these two keys, not cf_token.
 vault_acme_email:    "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.email }}"
-vault_acme_cf_token: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.cf_token }}"
+vault_acme_cf_key:   "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.cf_key }}"
+vault_acme_cf_email: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.cf_email }}"
 
 # Uncomment once AWX job templates are created:
 # vault_awx_host_config_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/awx/host_callback', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.host_config_key }}"
