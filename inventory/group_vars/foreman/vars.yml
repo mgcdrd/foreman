@@ -134,6 +134,17 @@ foreman_realm_principal: "svc-foreman-agent@{{ kerberos_realm }}"
 foreman_realm_freeipa_remove_dns: "false"
 foreman_ipa_controller: "{{ ipa_primary }}"
 
+# Self-fetching the realm principal's keytab rotates its Kerberos key,
+# invalidating vault_foreman_realm_agent_password. Have the role reset the
+# password and write it back to Vault so a full rebuild doesn't need a
+# manual reset (vault_ipa_admin_user must hold a role scoped to change
+# only svc-foreman-agent's password).
+foreman_realm_vault_rotate: true
+foreman_realm_vault_addr: "{{ vault_addr }}"
+foreman_realm_vault_kv_mount: "{{ vault_kv_infra_mount }}"
+foreman_realm_vault_path: "{{ vault_kv_env }}/foreman"
+foreman_realm_vault_password_key: "realm_agent_password"
+
 # ============================================================
 # Puppet
 # ============================================================
