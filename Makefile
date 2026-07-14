@@ -1,49 +1,62 @@
-.PHONY: deploy storage lvm certs install config syncplans repos lifecycle infra provisioning hostgroups check list help
+.DEFAULT_GOAL := help
 
-deploy:
-	ansible-playbook site.yml
+# Local overrides:
+# ../../ansible-local.mk
+-include ../../ansible-local.mk
 
-storage:
-	ansible-playbook site.yml --tags storage
+VENV ?= .venv
+PYTHON ?= python3
+ANSIBLE_GALAXY ?= $(VENV)/bin/ansible-galaxy
+ANSIBLE_LINT ?= $(VENV)/bin/ansible-lint
+MOLECULE ?= $(VENV)/bin/molecule
 
-lvm:
-	ansible-playbook site.yml --tags lvm
-
-certs:
-	ansible-playbook site.yml --tags certs
-
-install:
-	ansible-playbook site.yml --tags foreman_install
-
-config:
-	ansible-playbook site.yml --tags foreman_config
-
-syncplans:
-	ansible-playbook site.yml --tags syncplans
-
-repos:
-	ansible-playbook site.yml --tags repos
-
-lifecycle:
-	ansible-playbook site.yml --tags lifecycle
-
-infra:
-	ansible-playbook site.yml --tags infra
-
-provisioning:
-	ansible-playbook site.yml --tags provisioning
-
-hostgroups:
-	ansible-playbook site.yml --tags hostgroups
-
-check:
-	ansible-playbook site.yml --syntax-check
-	ansible-lint site.yml
-
-list:
-	ansible-playbook site.yml --list-tasks
+.PHONY: help venv setup devrepos install lint syntax clean
 
 help:
-	@echo "Targets: deploy storage lvm certs install config"
-	@echo "         syncplans repos lifecycle infra provisioning hostgroups"
-	@echo "         check list"
+	@echo "Available targets"
+	@echo "  make setup       Create dev environment"
+	@echo "  make devinstall  Install Dev Ansible dependencies"
+	@echo "  make install     Install Ansible dependencies"
+	@echo "  make lint        Run ansible-lint"
+	@echo "  make syntax      Check playbook syntax"
+	@echo "  make test        Run Molecule tests"
+	@echo "  make clean       Remove generated files"
+
+venv:
+	$(PYTHON) -m venv $(VENV)
+	$(VENV)/bin/pip install --upgrade pip
+
+setup: venv
+	$(VENV)/bin/pip install \
+		ansible \
+		ansible-lint \
+		molecule \
+		molecule-docker
+
+devinstall: setup
+    cp collections/requirements.yml collections/requirements.yml.local
+    /usr/local/bin/yq -i '(.collections[] | select(.name == "mgcdrd.infrabase") | .source) = strenv(INFRA_BASE_URL)' collections/requirements.yml.local
+    /usr/local/bin/yq -i '(.collections[] | select(.name == "mgcdrd.infrabase") | .source) = strenv(INFRA_SVC_URL)'  collections/requirements.yml.local
+    $(ANSIBLE_GALAXY) collection install \
+		-r requirements.yml.local \
+		-p collections
+
+install: setup
+    $(ANSIBLE_GALAXY) collection install \
+		-r requirements.yml \
+		-p collections
+
+lint:
+	$(ANSIBLE_LINT)
+
+syntax:
+	$(VENV)/bin/ansible-playbook \
+		--syntax-check \
+		site.yml
+
+test:
+	$(MOLECULE) test
+
+clean:
+	rm -rf $(VENV)
+	rm -rf .molecule

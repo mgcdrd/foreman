@@ -3,6 +3,7 @@ CLAUDE.md
 __pycache__/
 .venv/
 .env
+.molecule/
 *.retry
 vault_pass*
 collections/*
