@@ -34,12 +34,12 @@ This deployment has no `hosts.yml`/`group_vars/all.yml` of its own — the
 `foreman` group, its host, and shared environment constants (`domain`,
 `vault_addr`, `ipa_primary`, `kerberos_realm`, `gitlab_url`, `vault_kv_*`,
 `ansible_user`, `rsyslog_remote_*`) all come from
-[inventory-common](https://gitlab.lab.example.com/ansible/inventory-common),
+[inventory-common](https://gitlab.example.com/ansible/inventory-common),
 referenced as a second inventory source in `ansible.cfg`. Clone it as a
 sibling of `deployments/`:
 
 ```bash
-git clone https://gitlab.lab.example.com/ansible/inventory-common.git ../../inventory-common
+git clone https://gitlab.example.com/ansible/inventory-common.git ../../inventory-common
 ```
 
 Add the host under the `foreman` group in `../../inventory-common/hosts.yml`
