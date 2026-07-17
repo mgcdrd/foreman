@@ -27,7 +27,7 @@
 # Discovers VMID automatically by hostname, adds disk, detects new
 # block device, and sets proxmox_disk_device fact for Phase 1.
 # ============================================================
-- name: foreman - ProxMox storage expansion
+- name: Foreman - ProxMox storage expansion
   hosts: foreman
   gather_facts: true
   become: true
@@ -52,7 +52,7 @@
 # back to foreman_data_disk_device from vars.yml.
 # Skipped if lvm_provision_vgs is empty.
 # ============================================================
-- name: foreman - LVM data disk setup
+- name: Foreman - LVM data disk setup
   hosts: foreman
   become: true
   tags: [storage, lvm]
@@ -69,7 +69,7 @@
 # ============================================================
 # Phase 2 — SSL certificate (acme_sh)
 # ============================================================
-- name: foreman - SSL certificate
+- name: Foreman - SSL certificate
   hosts: foreman
   become: true
   tags: [certs]
@@ -102,7 +102,7 @@
 # ============================================================
 # Phase 3 — Foreman + Katello installation
 # ============================================================
-- name: foreman - install Foreman + Katello
+- name: Foreman - install Foreman + Katello
   hosts: foreman
   become: true
   tags: [foreman_install]
@@ -113,7 +113,7 @@
 # ============================================================
 # Phase 4 — Foreman configuration
 # ============================================================
-- name: foreman - configure Foreman
+- name: Foreman - configure Foreman
   hosts: foreman
   become: true
   tags: [foreman_config]
