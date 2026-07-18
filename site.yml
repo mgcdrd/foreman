@@ -76,8 +76,8 @@
   roles:
     - role: mgcdrd.infrabase.acme_sh
       vars:
-        acme_sh_email:    "{{ vault_acme_email }}"
-        acme_sh_cf_key:   "{{ vault_acme_cf_key }}"
+        acme_sh_email: "{{ vault_acme_email }}"
+        acme_sh_cf_key: "{{ vault_acme_cf_key }}"
         acme_sh_cf_email: "{{ vault_acme_cf_email }}"
         acme_sh_certs:
           - domains:
