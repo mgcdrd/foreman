@@ -156,6 +156,12 @@ foreman_puppet_autosign_entries: "[*.{{ domain }}]"
 foreman_installer_tuning: development
 foreman_installer_skip_checks: true
 
+# letsencrypt (default) | google — Google Public CA requires an EAB keypair
+# (gcloud publicca external-account-keys create) in Vault at
+# infra/<env>/acme/google before switching this. See README "Certificate
+# renewal" section.
+foreman_acme_ca: letsencrypt
+
 foreman_custom_certs: true
 foreman_cert_path: "/etc/ssl/acme/{{ foreman_hostname }}/cert.pem"
 foreman_cert_key_path: "/etc/ssl/acme/{{ foreman_hostname }}/key.pem"
@@ -502,6 +508,7 @@ foreman_activation_keys:
 # ============================================================
 foreman_domains:
   - name: "{{ domain }}"
+    dns_proxy: "{{ foreman_hostname }}"
     locations: "{{ foreman_location }}"
     organizations: "{{ foreman_org }}"
     state: present

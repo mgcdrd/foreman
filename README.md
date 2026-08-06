@@ -100,7 +100,9 @@ Phase 5 sub-targets for partial re-runs:
 1. Set `foreman_dhcp_interface` in `inventory/group_vars/foreman/vars.yml` to the correct NIC
 2. Set `foreman_pdns_api_url` in `vars.yml` to the PowerDNS REST API endpoint
 3. Populate all Vault paths (see below)
-4. Uncomment `foreman_awx_url` in `vars.yml` and `vault_awx_host_config_key` in `vault.yml`
+4. Leave `foreman_acme_ca: letsencrypt` (default) or switch to `google` once
+   the Google Public CA EAB keypair is populated at `infra/lab/acme/google`
+5. Uncomment `foreman_awx_url` in `vars.yml` and `vault_awx_host_config_key` in `vault.yml`
    once AWX job templates are created
 
 
@@ -108,11 +110,12 @@ Phase 5 sub-targets for partial re-runs:
 
 | What | Path | Keys |
 |------|------|------|
-| Foreman admin + DB | `infra/lab/foreman` | `admin_username`, `admin_password`, `db_password`, `host_root_pass`, `realm_agent_password`, `template_sync_ssh_private_key`, `template_sync_ssh_public_key` |
+| Foreman admin + DB | `infra/lab/foreman` | `admin_username`, `admin_password`, `db_password`, `host_root_pass`, `realm_agent_password`, `template_sync_ssh_private_key`, `template_sync_ssh_public_key`, `ldap_bind_password` (only when `foreman_ldap_auth_sources` is set) |
 | IPA domain admin | `infra/lab/ipa/domain_admin` | `username`, `password` |
 | PowerDNS API | `infra/lab/pdns` | `api_key` |
 | ProxMox nodes | `infra/lab/proxmox/root` | one `<node>_password` key per compute node referenced in `vars.yml` (e.g. `pve2_password`) |
 | ACME / Cloudflare | `infra/lab/acme` | `email`, `cf_key`, `cf_email` (legacy Cloudflare Global API Key mode) |
+| ACME / Google Public CA EAB | `infra/lab/acme/google` | `kid`, `hmac_key` (only read when `foreman_acme_ca: google`, see below) |
 | AWX callback | `infra/lab/awx/host_callback` | `host_config_key` (optional — only needed once AWX job templates exist) |
 
 `realm_agent_password` is the password for the IPA account named in
@@ -144,11 +147,20 @@ was pre-provisioned in PVE (Phase 1.5 falls back to `/dev/vdb`).
 
 ## Certificate renewal
 
-The web cert is an RSA 2048 Let's Encrypt cert (`acme_sh` role,
-`complete_chain: true`): `ca.pem` carries the full chain rooted with ISRG
-Root X1 so `katello-certs-check` accepts it. On each acme.sh auto-renewal the
-registered hook re-roots the copied chain (`complete-le-chain.sh`) and pushes
-it through `foreman-installer --certs-update-server` via
+The web cert is an RSA 2048 cert (`acme_sh` role, `complete_chain: true`)
+issued by the CA set in `foreman_acme_ca` (`vars.yml`):
+
+- **`letsencrypt`** (default) — `ca.pem` carries the full chain rooted with
+  ISRG Root X1.
+- **`google`** — Google Public CA, `ca.pem` rooted with GTS Root R1. Requires
+  an EAB keypair in Vault first (`gcloud publicca external-account-keys
+  create --location=<region>`, stored at `infra/lab/acme/google` as `kid` /
+  `hmac_key`) — Google's ACME endpoint rejects registration without it.
+
+Either way `katello-certs-check` gets a self-contained chain. On each acme.sh
+auto-renewal the registered hook re-roots the copied chain
+(`complete-le-chain.sh`, pinned to whichever CA is active) and pushes it
+through `foreman-installer --certs-update-server` via
 `/usr/local/sbin/foreman-cert-renewal.sh`. No `fullchain.pem` is deployed.
 
 ## Content managed

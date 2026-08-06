@@ -68,32 +68,53 @@
 
 # ============================================================
 # Phase 2 — SSL certificate (acme_sh)
+# CA is selected by foreman_acme_ca (letsencrypt | google, see vars.yml).
+# Either way ca.pem is rooted to a self-contained chain — katello-certs
+# validates the chain to a self-signed root.
 # ============================================================
 - name: Foreman - SSL certificate
   hosts: foreman
   become: true
   tags: [certs]
+  vars:
+    _foreman_acme_google: "{{ foreman_acme_ca == 'google' }}"
+    _foreman_acme_root_cn: "{{ 'GTS Root R1' if _foreman_acme_google else 'ISRG Root X1' }}"
+    _foreman_acme_root_fpr: "{{ 'D9:47:43:2A:BD:E7:B7:FA:90:FC:2E:6B:59:10:1B:12:80:E0:E1:C7:E4:E4:0F:A3:C6:88:7F:FF:57:A7:F4:CF' if _foreman_acme_google else '96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6' }}"
+    _foreman_acme_root_url: "{{ 'https://pki.goog/repo/certs/gtsr1.pem' if _foreman_acme_google else 'https://letsencrypt.org/certs/isrgrootx1.pem' }}"
   roles:
     - role: mgcdrd.infrabase.acme_sh
       vars:
         acme_sh_email: "{{ vault_acme_email }}"
+        acme_sh_ca: "{{ 'google' if _foreman_acme_google else 'letsencrypt' }}"
         acme_sh_cf_key: "{{ vault_acme_cf_key }}"
         acme_sh_cf_email: "{{ vault_acme_cf_email }}"
+        # Google Public CA requires EAB (see prerequisites in README);
+        # Let's Encrypt does not use it.
+        acme_sh_eab_enabled: "{{ _foreman_acme_google }}"
+        acme_sh_eab_kid: "{{ vault_acme_google_eab_kid if _foreman_acme_google else '' }}"
+        acme_sh_eab_hmac_key: "{{ vault_acme_google_eab_hmac_key if _foreman_acme_google else '' }}"
         acme_sh_certs:
           - domains:
               - "{{ foreman_hostname }}"
             challenge: dns_cf
-            # RSA cert with ca.pem rooted to ISRG Root X1 — katello-certs
-            # validates the chain to a self-contained root.
+            # RSA cert with ca.pem rooted to the CA's self-signed root —
+            # katello-certs validates the chain to a self-contained root.
             keylength: "2048"
             complete_chain: true
+            root_cn: "{{ _foreman_acme_root_cn }}"
+            root_fingerprint: "{{ _foreman_acme_root_fpr }}"
+            root_urls:
+              - "{{ _foreman_acme_root_url }}"
             # On renewal: re-root the copied chain, then push it through the
             # installer (foreman-cert-renewal.sh, deployed by foreman_install).
             # Both are no-ops before Foreman is installed.
             reload_cmd: >-
               /usr/local/sbin/complete-le-chain.sh
               -f /etc/ssl/acme/{{ foreman_hostname }}/ca.pem
-              -l /etc/ssl/acme/{{ foreman_hostname }}/cert.pem &&
+              -l /etc/ssl/acme/{{ foreman_hostname }}/cert.pem
+              -c "{{ _foreman_acme_root_cn }}"
+              -p "{{ _foreman_acme_root_fpr }}"
+              -r "{{ _foreman_acme_root_url }}" &&
               { test -x /usr/local/sbin/foreman-cert-renewal.sh &&
               /usr/local/sbin/foreman-cert-renewal.sh || true; }
             state: present

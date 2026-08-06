@@ -17,6 +17,10 @@ vault_foreman_template_sync_ssh_public_key: "{{ lookup('community.hashi_vault.va
 vault_ipa_admin_user:     "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/ipa/domain_admin', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.username }}"
 vault_ipa_admin_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/ipa/domain_admin', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.password }}"
 
+# Only needed if foreman_ldap_auth_sources is set (IPA fallback) — bind account
+# password for the LDAP auth source's account_password.
+vault_foreman_ldap_bind_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/foreman', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.ldap_bind_password }}"
+
 vault_pdns_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/pdns', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.api_key }}"
 
 vault_pve2_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve2_password }}"
@@ -33,6 +37,13 @@ vault_pve_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_e
 vault_acme_email:    "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.email }}"
 vault_acme_cf_key:   "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.cf_key }}"
 vault_acme_cf_email: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.cf_email }}"
+
+# Only read when foreman_acme_ca: google — populate infra/<env>/acme/google
+# with an EAB keypair from `gcloud publicca external-account-keys create`
+# before switching. site.yml's ternaries skip these lookups otherwise, so
+# this path does not need to exist for the default (letsencrypt) CA.
+vault_acme_google_eab_kid:      "{{ (lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme/google', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.kid) if foreman_acme_ca == 'google' else '' }}"
+vault_acme_google_eab_hmac_key: "{{ (lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme/google', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.hmac_key) if foreman_acme_ca == 'google' else '' }}"
 
 # Uncomment once AWX job templates are created:
 # vault_awx_host_config_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/awx/host_callback', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.host_config_key }}"
