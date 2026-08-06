@@ -86,8 +86,8 @@
       vars:
         acme_sh_email: "{{ vault_acme_email }}"
         acme_sh_ca: "{{ 'google' if _foreman_acme_google else 'letsencrypt' }}"
-        acme_sh_cf_key: "{{ vault_acme_cf_key }}"
-        acme_sh_cf_email: "{{ vault_acme_cf_email }}"
+        acme_sh_pdns_url: "{{ foreman_pdns_api_url }}"
+        acme_sh_pdns_token: "{{ vault_pdns_api_key }}"
         # Google Public CA requires EAB (see prerequisites in README);
         # Let's Encrypt does not use it.
         acme_sh_eab_enabled: "{{ _foreman_acme_google }}"
@@ -96,7 +96,7 @@
         acme_sh_certs:
           - domains:
               - "{{ foreman_hostname }}"
-            challenge: dns_cf
+            challenge: dns_pdns
             # RSA cert with ca.pem rooted to the CA's self-signed root —
             # katello-certs validates the chain to a self-contained root.
             keylength: "2048"
