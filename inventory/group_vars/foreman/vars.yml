@@ -817,6 +817,28 @@ foreman_hostgroups:
     state: present
 
 # ============================================================
+# SCAP compliance
+# scap-security-guide (installed by foreman_install) auto-seeds default
+# content for every installed datastream on first run — Rocky 9 already
+# gets "Red Hat rl9 default content" (ssg-rl9-ds.xml) this way, so
+# foreman_scap_contents is left empty; only needed for custom/tailored
+# datastreams beyond what ships pre-seeded.
+# ============================================================
+foreman_scap_contents: []
+
+foreman_scap_policies:
+  - name: "CIS Rocky 9 - Level 2"
+    description: "Weekly CIS Level 2 scan, Rocky 9 base hosts"
+    scap_content_title: "Red Hat rl9 default content"
+    scap_content_profile: "CIS Red Hat Enterprise Linux 9 Benchmark for Level 2"
+    deploy_by: ansible
+    period: weekly
+    weekday: sunday
+    hostgroups:
+      - Rocky 9 Base
+    state: present
+
+# ============================================================
 # Users and Groups
 # ============================================================
 foreman_usergroups:
