@@ -8,7 +8,7 @@ collections:
   - name: mgcdrd.infrasvc
     source: https://github.com/mgcdrd/infrasvc.git
     type: git
-    version: v0.6.0
+    version: v0.6.2
 
   - name: theforeman.foreman
     version: ">=4.0.0"

@@ -72,6 +72,7 @@ Then update `vars.yml` with your network values:
 | Phase | Make target | What it does |
 |-------|-------------|--------------|
 | 0 | `make storage` | Add 400G data disk via ProxMox API, detect block device |
+| 0.5 | `make nics` | Add/update additional NICs via ProxMox API (optional, skipped if `foreman_proxmox_nics` is empty) |
 | 1 | `make lvm` | Carve data disk into LVM volumes for Pulp, containers, pgsql |
 | 2 | `make certs` | Obtain TLS cert via ACME (Cloudflare DNS-01) |
 | 3 | `make install` | Run `foreman-installer-katello` (~20 min) |
@@ -143,6 +144,27 @@ by hostname). Phase 1.5 partitions it with LVM:
 
 Set `foreman_expand_storage: false` in `vars.yml` to skip Phase 0 if the disk
 was pre-provisioned in PVE (Phase 1.5 falls back to `/dev/vdb`).
+
+
+## Additional NICs
+
+Phase 0.5 (`mgcdrd.infrabase.proxmox_nic`) adds or updates VM network
+interfaces (`net1`+) via the ProxMox API — `net0` stays owned by the VM's
+clone-time config and isn't touched here. Skipped entirely when
+`foreman_proxmox_nics` is empty (the default). Set it in `vars.yml`:
+
+```yaml
+foreman_proxmox_nics:
+  - interface: net1
+    bridge: vmbr1
+    tag: 100
+    state: present
+```
+
+Uses the same PVE node/credentials as Phase 0 (`foreman_proxmox_api_host`,
+`vault_pve_password`). See `mgcdrd.infrabase.proxmox_nic`'s README for the
+full variable reference (model, firewall, mtu, mac, and removing a NIC with
+`state: absent`).
 
 
 ## Certificate renewal

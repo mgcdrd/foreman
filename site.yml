@@ -4,6 +4,7 @@
 #
 # Phases:
 #   0. Storage expansion — add data disk via ProxMox API (optional)
+#   0.5 NIC configuration — add/update NICs via ProxMox API (optional)
 #   1. LVM setup         — carve up data disk for Pulp / containers / pgsql
 #   2. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
 #   3. Foreman install   — install Foreman + Katello via foreman-installer
@@ -43,6 +44,26 @@
         proxmox_disk_storage: "{{ foreman_proxmox_storage }}"
         proxmox_disk_size: "{{ foreman_proxmox_disk_size }}"
         proxmox_disk_state: present
+
+
+# ============================================================
+# Phase 0.5 — ProxMox NIC configuration (optional)
+# Adds/updates additional VM network interfaces via the PVE API. net0 stays
+# owned by the VM's clone-time config — this only manages net1+.
+# Skipped unless foreman_proxmox_nics has entries.
+# ============================================================
+- name: Foreman - ProxMox NIC configuration
+  hosts: foreman
+  gather_facts: false
+  tags: [storage, network]
+  roles:
+    - role: mgcdrd.infrabase.proxmox_nic
+      when: foreman_proxmox_nics | length > 0
+      vars:
+        proxmox_nic_api_host: "{{ foreman_proxmox_api_host }}"
+        proxmox_nic_api_password: "{{ vault_pve_password }}"
+        proxmox_nic_vm_name: "{{ foreman_hostname }}"
+        proxmox_nic_interfaces: "{{ foreman_proxmox_nics }}"
 
 
 # ============================================================

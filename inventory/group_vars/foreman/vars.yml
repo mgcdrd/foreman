@@ -24,6 +24,23 @@ foreman_proxmox_disk_size: "400"                  # GiB, no suffix for state=pre
 foreman_data_disk_device: /dev/sdb
 
 # ============================================================
+# ProxMox NIC configuration (Phase 0.5)
+# Adds/updates additional VM network interfaces via the PVE API
+# (mgcdrd.infrabase.proxmox_nic). net0 is owned by the VM's clone-time
+# config, not this list. Leave empty to skip the phase entirely.
+# ============================================================
+foreman_proxmox_nics: []
+# foreman_proxmox_nics:
+#   - interface: net1
+#     bridge: vmbr1
+#     tag: 100                # VLAN tag
+#     model: virtio            # e1000 | rtl8139 | virtio (default) | ...
+#     firewall: false
+#     state: present
+#   - interface: net2
+#     state: absent
+
+# ============================================================
 # LVM layout — volumes carved from the data disk.
 # The VG device is set dynamically in site.yml using proxmox_disk_device
 # (set by Phase 0) with foreman_data_disk_device as fallback.
