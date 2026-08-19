@@ -41,6 +41,22 @@ foreman_proxmox_nics: []
 #     state: absent
 
 # ============================================================
+# OS network interface configuration (Phase 0.6)
+# Configures whatever Phase 0.5 added at the guest-OS level via
+# NetworkManager (mgcdrd.infrabase.network_interfaces) — bonding, VLAN
+# subinterfaces, static IPs. net0/mgmt stays untouched here; this is only
+# for additional NICs. Leave empty to skip the phase entirely. See that
+# role's README for the full per-type key reference.
+# ============================================================
+foreman_network_interfaces: []
+# foreman_network_interfaces:
+#   - name: net1
+#     type: physical
+#     device: eth1
+#     ip4: ["10.100.0.5/24"]
+#     gw4: 10.100.0.1
+
+# ============================================================
 # LVM layout — volumes carved from the data disk.
 # The VG device is set dynamically in site.yml using proxmox_disk_device
 # (set by Phase 0) with foreman_data_disk_device as fallback.

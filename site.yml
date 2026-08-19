@@ -5,6 +5,7 @@
 # Phases:
 #   0. Storage expansion — add data disk via ProxMox API (optional)
 #   0.5 NIC configuration — add/update NICs via ProxMox API (optional)
+#   0.6 OS network config — configure the added NICs via NetworkManager (optional)
 #   1. LVM setup         — carve up data disk for Pulp / containers / pgsql
 #   2. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
 #   3. Foreman install   — install Foreman + Katello via foreman-installer
@@ -64,6 +65,26 @@
         proxmox_nic_api_password: "{{ vault_pve_password }}"
         proxmox_nic_vm_name: "{{ foreman_hostname }}"
         proxmox_nic_interfaces: "{{ foreman_proxmox_nics }}"
+
+
+# ============================================================
+# Phase 0.6 — OS network interface configuration (optional)
+# Brings up whatever Phase 0.5 added at the guest-OS level (nmcli) —
+# bonding, VLAN subinterfaces, static IPs. Skipped unless
+# foreman_network_interfaces has entries. Runs after Phase 0.5, before
+# anything else, per network_interfaces' own SSH-lockout warning — the
+# current session should not be on the interface being reconfigured.
+# ============================================================
+- name: Foreman - OS network interface configuration
+  hosts: foreman
+  become: true
+  gather_facts: true
+  tags: [network]
+  roles:
+    - role: mgcdrd.infrabase.network_interfaces
+      when: foreman_network_interfaces | length > 0
+      vars:
+        network_interfaces: "{{ foreman_network_interfaces }}"
 
 
 # ============================================================
