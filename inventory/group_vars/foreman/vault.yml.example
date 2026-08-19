@@ -36,12 +36,16 @@ vault_pve_password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_e
 # (vault_pdns_api_key) for the dns_pdns challenge.
 vault_acme_email: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.email }}"
 
-# Only read when foreman_acme_ca: google — populate infra/<env>/acme/google
-# with an EAB keypair from `gcloud publicca external-account-keys create`
-# before switching. site.yml's ternaries skip these lookups otherwise, so
-# this path does not need to exist for the default (letsencrypt) CA.
-vault_acme_google_eab_kid:      "{{ (lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme/google', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.kid) if foreman_acme_ca == 'google' else '' }}"
-vault_acme_google_eab_hmac_key: "{{ (lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme/google', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.hmac_key) if foreman_acme_ca == 'google' else '' }}"
+# Only read when foreman_acme_ca: google — populate
+# infra/<env>/acme/google/<foreman_hostname> with an EAB keypair using
+# mgcdrd.infrasvc.google_publicca_eab before switching. The path is keyed
+# by foreman_hostname (not a shared infra/<env>/acme/google path) because
+# a Google Public CA EAB key is single-use — it registers exactly one ACME
+# account and expires unused after 7 days, so it can't be shared across
+# hosts. site.yml's ternaries skip these lookups otherwise, so this path
+# does not need to exist for the default (letsencrypt) CA.
+vault_acme_google_eab_kid:      "{{ (lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme/google/' + foreman_hostname, engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.kid) if foreman_acme_ca == 'google' else '' }}"
+vault_acme_google_eab_hmac_key: "{{ (lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme/google/' + foreman_hostname, engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.hmac_key) if foreman_acme_ca == 'google' else '' }}"
 
 # Uncomment once AWX job templates are created:
 # vault_awx_host_config_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/awx/host_callback', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.host_config_key }}"
