@@ -71,12 +71,16 @@ Then update `vars.yml` with your network values:
 
 | Phase | Make target | What it does |
 |-------|-------------|--------------|
-| 0 | `make storage` | Add 400G data disk via ProxMox API, detect block device |
-| 0.5 | `make nics` | Add/update additional NICs via ProxMox API (optional, skipped if `foreman_proxmox_nics` is empty) |
-| 1 | `make lvm` | Carve data disk into LVM volumes for Pulp, containers, pgsql |
-| 2 | `make certs` | Obtain TLS cert via ACME (Cloudflare DNS-01) |
-| 3 | `make install` | Run `foreman-installer-katello` (~20 min) |
-| 4 | `make config` | Configure Foreman via API (content, infra, provisioning, host groups) |
+| 1 | `make network` | Configure additional NICs at the OS level (optional, skipped if `foreman_network_interfaces` is empty) |
+| 2 | `make lvm` | Carve data disk into LVM volumes for Pulp, containers, pgsql |
+| 3 | `make certs` | Obtain TLS cert via ACME (Cloudflare DNS-01) |
+| 4 | `make install` | Run `foreman-installer-katello` (~20 min) |
+| 5 | `make config` | Configure Foreman via API (content, infra, provisioning, host groups) |
+
+ProxMox-level provisioning (data disk, additional NICs) is **not** part of
+this playbook — run `deployments/proxmox-vm-manage` against this host first
+(see that deployment's README) before Phase 2, which expects
+`foreman_data_disk_device` to already exist as a block device.
 
 OS hardening and FreeIPA enrollment are **not** part of this playbook — the
 host is assumed to be hardened (see `deployments/harden`) and already an IPA
@@ -98,12 +102,14 @@ Phase 5 sub-targets for partial re-runs:
 
 ## Before first run
 
-1. Set `foreman_dhcp_interface` in `inventory/group_vars/foreman/vars.yml` to the correct NIC
-2. Set `foreman_pdns_api_url` in `vars.yml` to the PowerDNS REST API endpoint
-3. Populate all Vault paths (see below)
-4. Leave `foreman_acme_ca: letsencrypt` (default) or switch to `google` once
+1. Run `deployments/proxmox-vm-manage` against this host to add the data
+   disk (and any extra NICs) — see that deployment's README
+2. Set `foreman_dhcp_interface` in `inventory/group_vars/foreman/vars.yml` to the correct NIC
+3. Set `foreman_pdns_api_url` in `vars.yml` to the PowerDNS REST API endpoint
+4. Populate all Vault paths (see below)
+5. Leave `foreman_acme_ca: letsencrypt` (default) or switch to `google` once
    the Google Public CA EAB keypair is populated at `infra/lab/acme/google`
-5. Uncomment `foreman_awx_url` in `vars.yml` and `vault_awx_host_config_key` in `vault.yml`
+6. Uncomment `foreman_awx_url` in `vars.yml` and `vault_awx_host_config_key` in `vault.yml`
    once AWX job templates are created
 
 
@@ -133,8 +139,11 @@ generated per-host.
 
 ## Storage layout
 
-Phase 0 adds a 400G virtio disk via the ProxMox API (VMID discovered automatically
-by hostname). Phase 1.5 partitions it with LVM:
+The data disk is added via `deployments/proxmox-vm-manage`, run against this
+host before this deployment (see that deployment's README and its
+`inventory/host_vars/` for the foreman host's disk spec). Phase 2 here just
+partitions whatever device `foreman_data_disk_device` (`vars.yml`) points at
+with LVM:
 
 | LV | Mount | Size |
 |----|-------|------|
@@ -142,29 +151,26 @@ by hostname). Phase 1.5 partitions it with LVM:
 | `lv_containers` | `/var/lib/containers` | 40G |
 | `lv_pgsql` | `/var/lib/pgsql` | 30G |
 
-Set `foreman_expand_storage: false` in `vars.yml` to skip Phase 0 if the disk
-was pre-provisioned in PVE (Phase 1.5 falls back to `/dev/vdb`).
-
 
 ## Additional NICs
 
-Phase 0.5 (`mgcdrd.infrabase.proxmox_nic`) adds or updates VM network
-interfaces (`net1`+) via the ProxMox API — `net0` stays owned by the VM's
-clone-time config and isn't touched here. Skipped entirely when
-`foreman_proxmox_nics` is empty (the default). Set it in `vars.yml`:
+Additional VM network interfaces (`net1`+) are added via
+`deployments/proxmox-vm-manage` (`mgcdrd.infrabase.proxmox_nic` under the
+hood) — `net0` stays owned by the VM's clone-time config and isn't touched
+by either deployment. Once a NIC exists at the PVE level, configure it at
+the OS level here via `foreman_network_interfaces` in `vars.yml`:
 
 ```yaml
-foreman_proxmox_nics:
-  - interface: net1
-    bridge: vmbr1
-    tag: 100
-    state: present
+foreman_network_interfaces:
+  - name: net1
+    type: physical
+    device: eth1
+    ip4: ["10.100.0.5/24"]
+    gw4: 10.100.0.1
 ```
 
-Uses the same PVE node/credentials as Phase 0 (`foreman_proxmox_api_host`,
-`vault_pve_password`). See `mgcdrd.infrabase.proxmox_nic`'s README for the
-full variable reference (model, firewall, mtu, mac, and removing a NIC with
-`state: absent`).
+See `mgcdrd.infrabase.network_interfaces`'s README for the full per-type key
+reference.
 
 
 ## Certificate renewal

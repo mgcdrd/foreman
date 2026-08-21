@@ -6,47 +6,23 @@
 #
 
 # ============================================================
-# ProxMox storage expansion (Phase 0)
-# Adds a data disk via the PVE API before the OS baseline runs.
-# Set foreman_expand_storage: false only if the disk was pre-provisioned.
-# VMID and node are discovered automatically by the proxmox_disk role.
-# ============================================================
-foreman_expand_storage: true
-
-foreman_proxmox_node: pve4                        # PVE node hosting the VM
-foreman_proxmox_api_host: "pve4.{{ domain }}"    # any PVE node
-foreman_proxmox_data_disk: scsi1                 # disk slot to add (must be free)
-foreman_proxmox_storage: truenas                 # PVE storage backend
-foreman_proxmox_disk_size: "400"                  # GiB, no suffix for state=present; use +XG suffix only for state=resized
-
-# Fallback device if foreman_expand_storage: false and disk already exists.
+# Data disk (Phase 2 / LVM)
+# The data disk itself (and any additional NICs) must already exist on
+# this VM before running this deployment — provisioned via
+# deployments/proxmox-vm-manage (see that deployment's README and its
+# inventory/host_vars/ for the foreman host's disk/NIC spec), not here.
 # virtio1 → /dev/vdb, scsi1 → /dev/sdb, etc.
+# ============================================================
 foreman_data_disk_device: /dev/sdb
 
 # ============================================================
-# ProxMox NIC configuration (Phase 0.5)
-# Adds/updates additional VM network interfaces via the PVE API
-# (mgcdrd.infrabase.proxmox_nic). net0 is owned by the VM's clone-time
-# config, not this list. Leave empty to skip the phase entirely.
-# ============================================================
-foreman_proxmox_nics: []
-# foreman_proxmox_nics:
-#   - interface: net1
-#     bridge: vmbr1
-#     tag: 100                # VLAN tag
-#     model: virtio            # e1000 | rtl8139 | virtio (default) | ...
-#     firewall: false
-#     state: present
-#   - interface: net2
-#     state: absent
-
-# ============================================================
-# OS network interface configuration (Phase 0.6)
-# Configures whatever Phase 0.5 added at the guest-OS level via
-# NetworkManager (mgcdrd.infrabase.network_interfaces) — bonding, VLAN
-# subinterfaces, static IPs. net0/mgmt stays untouched here; this is only
-# for additional NICs. Leave empty to skip the phase entirely. See that
-# role's README for the full per-type key reference.
+# OS network interface configuration (Phase 1)
+# Configures additional NICs (added beforehand via deployments/
+# proxmox-vm-manage) at the guest-OS level via NetworkManager
+# (mgcdrd.infrabase.network_interfaces) — bonding, VLAN subinterfaces,
+# static IPs. net0/mgmt stays untouched here. Leave empty to skip the
+# phase entirely. See that role's README for the full per-type key
+# reference.
 # ============================================================
 foreman_network_interfaces: []
 # foreman_network_interfaces:
@@ -58,8 +34,6 @@ foreman_network_interfaces: []
 
 # ============================================================
 # LVM layout — volumes carved from the data disk.
-# The VG device is set dynamically in site.yml using proxmox_disk_device
-# (set by Phase 0) with foreman_data_disk_device as fallback.
 # ============================================================
 lvm_provision_volumes:
   - lv: lv_pulp

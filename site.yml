@@ -3,77 +3,36 @@
 # Foreman + Katello deployment — Rocky 9
 #
 # Phases:
-#   0. Storage expansion — add data disk via ProxMox API (optional)
-#   0.5 NIC configuration — add/update NICs via ProxMox API (optional)
-#   0.6 OS network config — configure the added NICs via NetworkManager (optional)
-#   1. LVM setup         — carve up data disk for Pulp / containers / pgsql
-#   2. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
-#   3. Foreman install   — install Foreman + Katello via foreman-installer
-#   4. Foreman config    — configure Foreman via theforeman.foreman collection
+#   1. OS network config — configure additional NICs via NetworkManager (optional)
+#   2. LVM setup         — carve up data disk for Pulp / containers / pgsql
+#   3. SSL certificates  — obtain ACME cert via acme_sh (Cloudflare DNS01)
+#   4. Foreman install   — install Foreman + Katello via foreman-installer
+#   5. Foreman config    — configure Foreman via theforeman.foreman collection
 #
 # Note: the Foreman host is assumed to be an existing IPA domain member.
 # IPA work (HTTP service principal, foreman-proxy keytab) is handled
 # within the foreman_install role (tasks/ipa.yml), not by ipa_client.
 #
+# ProxMox-level provisioning (data disk, additional NICs) is NOT part of
+# this deployment — run deployments/proxmox-vm-manage against this host
+# first (see that deployment's README) to add the data disk / NICs before
+# the LVM phase below, which expects foreman_data_disk_device to already
+# exist as a block device.
+#
 # Usage — see Makefile for shorthand targets:
 #   make deploy          # full run
-#   make storage         # Phase 0 only — add disk + LVM
 #   make install         # Phase 4 only
 #   make config          # Phase 5 only
 # ============================================================
 
 
 # ============================================================
-# Phase 0 — ProxMox storage expansion (optional)
-# Skipped unless foreman_expand_storage: true in vars.yml.
-# Discovers VMID automatically by hostname, adds disk, detects new
-# block device, and sets proxmox_disk_device fact for Phase 1.
-# ============================================================
-- name: Foreman - ProxMox storage expansion
-  hosts: foreman
-  gather_facts: true
-  become: true
-  tags: [storage]
-  roles:
-    - role: mgcdrd.infrabase.proxmox_disk
-      when: foreman_expand_storage | bool
-      vars:
-        proxmox_disk_api_host: "{{ foreman_proxmox_api_host }}"
-        proxmox_disk_api_password: "{{ vault_pve_password }}"
-        proxmox_disk_vm_name: "{{ foreman_hostname }}"
-        proxmox_disk_slot: "{{ foreman_proxmox_data_disk }}"
-        proxmox_disk_storage: "{{ foreman_proxmox_storage }}"
-        proxmox_disk_size: "{{ foreman_proxmox_disk_size }}"
-        proxmox_disk_state: present
-
-
-# ============================================================
-# Phase 0.5 — ProxMox NIC configuration (optional)
-# Adds/updates additional VM network interfaces via the PVE API. net0 stays
-# owned by the VM's clone-time config — this only manages net1+.
-# Skipped unless foreman_proxmox_nics has entries.
-# ============================================================
-- name: Foreman - ProxMox NIC configuration
-  hosts: foreman
-  gather_facts: false
-  tags: [storage, network]
-  roles:
-    - role: mgcdrd.infrabase.proxmox_nic
-      when: foreman_proxmox_nics | length > 0
-      vars:
-        proxmox_nic_api_host: "{{ foreman_proxmox_api_host }}"
-        proxmox_nic_api_password: "{{ vault_pve_password }}"
-        proxmox_nic_vm_name: "{{ foreman_hostname }}"
-        proxmox_nic_interfaces: "{{ foreman_proxmox_nics }}"
-
-
-# ============================================================
-# Phase 0.6 — OS network interface configuration (optional)
-# Brings up whatever Phase 0.5 added at the guest-OS level (nmcli) —
-# bonding, VLAN subinterfaces, static IPs. Skipped unless
-# foreman_network_interfaces has entries. Runs after Phase 0.5, before
-# anything else, per network_interfaces' own SSH-lockout warning — the
-# current session should not be on the interface being reconfigured.
+# Phase 1 — OS network interface configuration (optional)
+# Configures additional NICs (added beforehand via deployments/
+# proxmox-vm-manage) at the guest-OS level (nmcli) — bonding, VLAN
+# subinterfaces, static IPs. Skipped unless foreman_network_interfaces has
+# entries. Runs first, per network_interfaces' own SSH-lockout warning —
+# the current session should not be on the interface being reconfigured.
 # ============================================================
 - name: Foreman - OS network interface configuration
   hosts: foreman
@@ -88,28 +47,27 @@
 
 
 # ============================================================
-# Phase 1 — LVM setup
-# Creates /var/lib/pulp, /var/lib/containers, /var/lib/pgsql.
-# Uses proxmox_disk_device fact if Phase 0 ran, otherwise falls
-# back to foreman_data_disk_device from vars.yml.
-# Skipped if lvm_provision_vgs is empty.
+# Phase 2 — LVM setup
+# Creates /var/lib/pulp, /var/lib/containers, /var/lib/pgsql on
+# foreman_data_disk_device — expected to already exist (added via
+# deployments/proxmox-vm-manage). Skipped if lvm_provision_vgs is empty.
 # ============================================================
 - name: Foreman - LVM data disk setup
   hosts: foreman
   become: true
-  tags: [storage, lvm]
+  tags: [lvm]
   vars:
     lvm_provision_vgs:
       - vg: vg_foreman
         pvs:
-          - "{{ proxmox_disk_device | default(foreman_data_disk_device) }}"
+          - "{{ foreman_data_disk_device }}"
   roles:
     - role: mgcdrd.infrabase.lvm2_provision
-      when: foreman_data_disk_device is defined or proxmox_disk_device is defined
+      when: foreman_data_disk_device is defined
 
 
 # ============================================================
-# Phase 2 — SSL certificate (acme_sh)
+# Phase 3 — SSL certificate (acme_sh)
 # CA is selected by foreman_acme_ca (letsencrypt | google, see vars.yml).
 # Either way ca.pem is rooted to a self-contained chain — katello-certs
 # validates the chain to a self-signed root.
@@ -163,7 +121,7 @@
 
 
 # ============================================================
-# Phase 3 — Foreman + Katello installation
+# Phase 4 — Foreman + Katello installation
 # ============================================================
 - name: Foreman - install Foreman + Katello
   hosts: foreman
@@ -174,7 +132,7 @@
 
 
 # ============================================================
-# Phase 4 — Foreman configuration
+# Phase 5 — Foreman configuration
 # ============================================================
 - name: Foreman - configure Foreman
   hosts: foreman
