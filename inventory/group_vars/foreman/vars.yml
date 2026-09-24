@@ -741,10 +741,34 @@ foreman_operatingsystems_deb:
   - name: Debian
     release_name: Bookworm
     major: 12
+    partition_tables:
+      - Preseed default
+    install_media:
+      - Debian mirror
+    provisioning_templates:
+      host_init_config: Linux host_init_config default
+      PXELinux: Preseed default PXELinux
+      PXEGrub2: Preseed default PXEGrub2
+      iPXE: Preseed default iPXE
+      provision: Preseed default
+      finish: Preseed default finish
+      user_data: Preseed default user data
     state: present
   - name: Debian
     release_name: Trixie
     major: 13
+    partition_tables:
+      - Preseed default
+    install_media:
+      - Debian mirror
+    provisioning_templates:
+      host_init_config: Linux host_init_config default
+      PXELinux: Preseed default PXELinux
+      PXEGrub2: Preseed default PXEGrub2
+      iPXE: Preseed default iPXE
+      provision: Preseed default
+      finish: Preseed default finish
+      user_data: Preseed default user data
     state: present
 
 foreman_operatingsystems_rh:
@@ -774,6 +798,8 @@ foreman_partition_table_os_families:
     family: Redhat
   - name: EL Single Disk UEFI
     family: Redhat
+  - name: Preseed default
+    family: Debian
 
 foreman_installation_media:
   - name: Rocky Linux
@@ -781,6 +807,17 @@ foreman_installation_media:
     operatingsystems:
       - Rocky 9
     path: "{{ foreman_url }}/pulp/content/{{ foreman_org | replace(',', '') | replace(' ', '_') }}/Library/custom/Rocky_9/Rocky_9_-_BaseOS_Kickstart"
+    locations:
+      - "{{ foreman_location }}"
+    organizations:
+      - "{{ foreman_org }}"
+    state: present
+  - name: Debian mirror
+    os_family: Debian
+    operatingsystems:
+      - Debian 12
+      - Debian 13
+    path: http://deb.debian.org/debian
     locations:
       - "{{ foreman_location }}"
     organizations:
