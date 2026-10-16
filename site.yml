@@ -50,19 +50,18 @@
 # Phase 2 — LVM setup
 # Creates /var/lib/pulp, /var/lib/containers, /var/lib/pgsql on
 # foreman_data_disk_device — expected to already exist (added via
-# deployments/proxmox-vm-manage). Skipped if lvm_provision_vgs is empty.
+# deployments/proxmox-vm-manage). Skipped if foreman_data_disk_device is unset.
 # ============================================================
 - name: Foreman - LVM data disk setup
   hosts: foreman
   become: true
   tags: [lvm]
   vars:
-    lvm_provision_vgs:
-      - vg: vg_foreman
-        pvs:
-          - "{{ foreman_data_disk_device }}"
+    storage_disks:
+      - device: "{{ foreman_data_disk_device }}"
+        vg: vg_foreman
   roles:
-    - role: mgcdrd.infrabase.lvm2_provision
+    - role: mgcdrd.infrabase.storage
       when: foreman_data_disk_device is defined
 
 

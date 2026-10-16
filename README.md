@@ -112,7 +112,7 @@ Variables come from three places: `inventory/group_vars/foreman/vars.yml` (deplo
 | `foreman_hostname` | `{{ foreman }}` | No | Server FQDN used throughout |
 | `foreman_url` | `https://{{ foreman_hostname }}` | No | Base URL |
 | `foreman_data_disk_device` | `/dev/sdb` | Yes | Data disk that phase 2 partitions with LVM; added beforehand through `deployments/proxmox-vm-manage` (`virtio1` is `/dev/vdb`, `scsi1` is `/dev/sdb`) |
-| `lvm_provision_volumes` | `lv_pulp` 300G on `/var/lib/pulp`, `lv_containers` 40G on `/var/lib/containers`, `lv_pgsql` 30G on `/var/lib/pgsql`, all XFS in `vg_foreman` | No | LVs carved from the data disk; see **Storage layout** |
+| `storage_mounts` | `lv_pulp` 300G on `/var/lib/pulp`, `lv_containers` 40G on `/var/lib/containers`, `lv_pgsql` 30G on `/var/lib/pgsql`, all XFS in `vg_foreman` | No | LVs carved from the data disk; see **Storage layout** |
 | `foreman_network_interfaces` | `[]` | No | Extra NICs configured at the OS level through `mgcdrd.infrabase.network_interfaces` (bonds, VLANs, static IPs); `net0` is untouched. Empty skips the phase. See **Additional NICs** |
 
 ### Installer and identity

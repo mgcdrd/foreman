@@ -35,27 +35,27 @@ foreman_network_interfaces: []
 # ============================================================
 # LVM layout — volumes carved from the data disk.
 # ============================================================
-lvm_provision_volumes:
+storage_mounts:
   - lv: lv_pulp
     vg: vg_foreman
     size: 300G
     fstype: xfs
-    mount: /var/lib/pulp
-    mount_opts: defaults
+    opts: defaults
+    path: /var/lib/pulp
 
   - lv: lv_containers
     vg: vg_foreman
     size: 40G
     fstype: xfs
-    mount: /var/lib/containers
-    mount_opts: defaults
+    opts: defaults
+    path: /var/lib/containers
 
   - lv: lv_pgsql
     vg: vg_foreman
     size: 30G
     fstype: xfs
-    mount: /var/lib/pgsql
-    mount_opts: defaults
+    opts: defaults
+    path: /var/lib/pgsql
 
 # ============================================================
 # Identity
