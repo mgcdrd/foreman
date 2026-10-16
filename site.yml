@@ -16,8 +16,8 @@
 # ProxMox-level provisioning (data disk, additional NICs) is NOT part of
 # this deployment — run deployments/proxmox-vm-manage against this host
 # first (see that deployment's README) to add the data disk / NICs before
-# the LVM phase below, which expects foreman_data_disk_device to already
-# exist as a block device.
+# the LVM phase below, which expects the data disk declared in
+# storage_disks_extra_foreman to already exist as a block device.
 #
 # Usage — see Makefile for shorthand targets:
 #   make deploy          # full run
@@ -30,7 +30,7 @@
 # Phase 1 — OS network interface configuration (optional)
 # Configures additional NICs (added beforehand via deployments/
 # proxmox-vm-manage) at the guest-OS level (nmcli) — bonding, VLAN
-# subinterfaces, static IPs. Skipped unless foreman_network_interfaces has
+# subinterfaces, static IPs. Skipped unless network_interfaces has
 # entries. Runs first, per network_interfaces' own SSH-lockout warning —
 # the current session should not be on the interface being reconfigured.
 # ============================================================
@@ -41,33 +41,29 @@
   tags: [network]
   roles:
     - role: mgcdrd.infrabase.network_interfaces
-      when: foreman_network_interfaces | length > 0
-      vars:
-        network_interfaces: "{{ foreman_network_interfaces }}"
+      when: network_interfaces | default([]) | length > 0
 
 
 # ============================================================
 # Phase 2 — LVM setup
-# Creates /var/lib/pulp, /var/lib/containers, /var/lib/pgsql on
-# foreman_data_disk_device — expected to already exist (added via
-# deployments/proxmox-vm-manage). Skipped if foreman_data_disk_device is unset.
+# Creates /var/lib/pulp, /var/lib/containers, /var/lib/pgsql on the disk
+# declared in storage_disks_extra_foreman / storage_mounts_extra_foreman
+# (layered over the base lists, so the hardening mounts are kept) — the disk
+# is expected to already exist (added via deployments/proxmox-vm-manage).
+# Skipped when no storage_disks / storage_disks_extra_* var is set.
 # ============================================================
 - name: Foreman - LVM data disk setup
   hosts: foreman
   become: true
   tags: [lvm]
-  vars:
-    storage_disks:
-      - device: "{{ foreman_data_disk_device }}"
-        vg: vg_foreman
   roles:
     - role: mgcdrd.infrabase.storage
-      when: foreman_data_disk_device is defined
+      when: query('varnames', '^storage_disks(_extra(_.+)?)?$') | map('extract', vars) | flatten | length > 0
 
 
 # ============================================================
 # Phase 3 — SSL certificate (acme_sh)
-# CA is selected by foreman_acme_ca (letsencrypt | google, see vars.yml).
+# CA is selected by acme_sh_ca (letsencrypt | google, see vars.yml).
 # Either way ca.pem is rooted to a self-contained chain — katello-certs
 # validates the chain to a self-signed root.
 # ============================================================
@@ -76,22 +72,18 @@
   become: true
   tags: [certs]
   vars:
-    _foreman_acme_google: "{{ foreman_acme_ca == 'google' }}"
+    _foreman_acme_google: "{{ acme_sh_ca == 'google' }}"
     _foreman_acme_root_cn: "{{ 'GTS Root R1' if _foreman_acme_google else 'ISRG Root X1' }}"
     _foreman_acme_root_fpr: "{{ 'D9:47:43:2A:BD:E7:B7:FA:90:FC:2E:6B:59:10:1B:12:80:E0:E1:C7:E4:E4:0F:A3:C6:88:7F:FF:57:A7:F4:CF' if _foreman_acme_google else '96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6' }}"
     _foreman_acme_root_url: "{{ 'https://pki.goog/repo/certs/gtsr1.pem' if _foreman_acme_google else 'https://letsencrypt.org/certs/isrgrootx1.pem' }}"
   roles:
     - role: mgcdrd.infrabase.acme_sh
       vars:
-        acme_sh_email: "{{ vault_acme_email }}"
-        acme_sh_ca: "{{ 'google' if _foreman_acme_google else 'letsencrypt' }}"
-        acme_sh_pdns_url: "{{ foreman_pdns_api_url }}"
-        acme_sh_pdns_token: "{{ vault_pdns_api_key }}"
+        # acme_sh_register_email, acme_sh_ca, acme_sh_pdns_url/_token and
+        # (for google) acme_sh_eab_kid/_hmac_key come from the inventory.
         # Google Public CA requires EAB (see prerequisites in README);
         # Let's Encrypt does not use it.
         acme_sh_eab_enabled: "{{ _foreman_acme_google }}"
-        acme_sh_eab_kid: "{{ vault_acme_google_eab_kid if _foreman_acme_google else '' }}"
-        acme_sh_eab_hmac_key: "{{ vault_acme_google_eab_hmac_key if _foreman_acme_google else '' }}"
         acme_sh_certs:
           - domains:
               - "{{ foreman_hostname }}"

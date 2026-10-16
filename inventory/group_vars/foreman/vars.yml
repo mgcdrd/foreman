@@ -11,9 +11,14 @@
 # this VM before running this deployment — provisioned via
 # deployments/proxmox-vm-manage (see that deployment's README and its
 # inventory/host_vars/ for the foreman host's disk/NIC spec), not here.
-# virtio1 → /dev/vdb, scsi1 → /dev/sdb, etc.
+# virtio1 → /dev/vdb, scsi1 → /dev/sdb, etc. Prefer a stable
+# /dev/disk/by-id/... path, and use the same path in every layer.
+# Declared as an *_extra_foreman layer so the base storage_disks /
+# storage_mounts (e.g. the CIS mount options) are kept.
 # ============================================================
-foreman_data_disk_device: /dev/sdb
+storage_disks_extra_foreman:
+  - device: /dev/sdb
+    vg: vg_foreman
 
 # ============================================================
 # OS network interface configuration (Phase 1)
@@ -24,8 +29,8 @@ foreman_data_disk_device: /dev/sdb
 # phase entirely. See that role's README for the full per-type key
 # reference.
 # ============================================================
-foreman_network_interfaces: []
-# foreman_network_interfaces:
+network_interfaces: []
+# network_interfaces:
 #   - name: net1
 #     type: physical
 #     device: eth1
@@ -35,7 +40,7 @@ foreman_network_interfaces: []
 # ============================================================
 # LVM layout — volumes carved from the data disk.
 # ============================================================
-storage_mounts:
+storage_mounts_extra_foreman:
   - lv: lv_pulp
     vg: vg_foreman
     size: 300G
@@ -70,7 +75,6 @@ foreman_url: "https://{{ foreman_hostname }}"
 foreman_org: "PLCA"
 foreman_location: "LAB"
 
-foreman_username: "admin"
 
 # ============================================================
 # Installer feature flags
@@ -142,9 +146,9 @@ foreman_realm_freeipa_remove_dns: "false"
 foreman_ipa_controller: "{{ ipa_primary }}"
 
 # Self-fetching the realm principal's keytab rotates its Kerberos key,
-# invalidating vault_foreman_realm_agent_password. Have the role reset the
+# invalidating foreman_realm_agent_password. Have the role reset the
 # password and write it back to Vault so a full rebuild doesn't need a
-# manual reset (vault_ipa_admin_user must hold a role scoped to change
+# manual reset (foreman_ipa_admin_user must hold a role scoped to change
 # only svc-foreman-agent's password).
 foreman_realm_vault_rotate: true
 foreman_realm_vault_addr: "{{ vault_addr }}"
@@ -164,10 +168,14 @@ foreman_installer_tuning: development
 foreman_installer_skip_checks: true
 
 # letsencrypt (default) | google — Google Public CA requires an EAB keypair
-# (gcloud publicca external-account-keys create) in Vault at
-# infra/<env>/acme/google before switching this. See README "Certificate
-# renewal" section.
-foreman_acme_ca: letsencrypt
+# in Vault at <env>/acme/google/<foreman_hostname> (minted with
+# mgcdrd.infrasvc.google_publicca_eab) before switching this. See README
+# "Certificate renewal" section. Read by site.yml's acme_sh phase.
+acme_sh_ca: letsencrypt
+# The dns_pdns challenge uses the same PowerDNS API as the smart proxy
+# (secrets: acme_sh_register_email, acme_sh_pdns_token, acme_sh_eab_* are in
+# vault.yml).
+acme_sh_pdns_url: "{{ foreman_pdns_api_url }}"
 
 foreman_custom_certs: true
 foreman_cert_path: "/etc/ssl/acme/{{ foreman_hostname }}/cert.pem"
@@ -563,7 +571,7 @@ foreman_compute_resources:
     provider: proxmox
     url: "https://pve2.{{ domain }}:8006/api2/json"
     user: root@pam
-    password: "{{ vault_pve2_password }}"
+    password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve2_password }}"
     ssl_verify_peer: true
     state: present
   - name: PVE3
@@ -573,7 +581,7 @@ foreman_compute_resources:
     provider: proxmox
     url: "https://pve3.{{ domain }}:8006/api2/json"
     user: root@pam
-    password: "{{ vault_pve3_password }}"
+    password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve3_password }}"
     ssl_verify_peer: true
     state: present
   - name: PVE4
@@ -583,7 +591,7 @@ foreman_compute_resources:
     provider: proxmox
     url: "https://pve4.{{ domain }}:8006/api2/json"
     user: root@pam
-    password: "{{ vault_pve4_password }}"
+    password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve4_password }}"
     ssl_verify_peer: true
     state: present
   - name: PVE6
@@ -593,7 +601,7 @@ foreman_compute_resources:
     provider: proxmox
     url: "https://pve6.{{ domain }}:8006/api2/json"
     user: root@pam
-    password: "{{ vault_pve6_password }}"
+    password: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/proxmox/root', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.pve6_password }}"
     ssl_verify_peer: true
     state: present
 

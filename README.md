@@ -71,7 +71,7 @@ Then update `vars.yml` with your network values:
 
 | Phase | Make target | What it does |
 |-------|-------------|--------------|
-| 1 | `make network` | Configure additional NICs at the OS level (optional, skipped if `foreman_network_interfaces` is empty) |
+| 1 | `make network` | Configure additional NICs at the OS level (optional, skipped if `network_interfaces` is empty) |
 | 2 | `make lvm` | Carve data disk into LVM volumes for Pulp, containers, pgsql |
 | 3 | `make certs` | Obtain TLS cert via ACME (Cloudflare DNS-01) |
 | 4 | `make install` | Run `foreman-installer-katello` (~20 min) |
@@ -80,7 +80,7 @@ Then update `vars.yml` with your network values:
 ProxMox-level provisioning (data disk, additional NICs) is **not** part of
 this playbook — run `deployments/proxmox-vm-manage` against this host first
 (see that deployment's README) before Phase 2, which expects
-`foreman_data_disk_device` to already exist as a block device.
+the disk in `storage_disks_extra_foreman` to already exist as a block device.
 
 OS hardening and FreeIPA enrollment are **not** part of this playbook — the
 host is assumed to be hardened (see `deployments/harden`) and already an IPA
@@ -111,9 +111,9 @@ Variables come from three places: `inventory/group_vars/foreman/vars.yml` (deplo
 | `foreman` | `foreman.example.com` (`env.yml.example`) | Yes | Foreman FQDN; must match the `foreman` group host in `inventory-common/hosts.yml` |
 | `foreman_hostname` | `{{ foreman }}` | No | Server FQDN used throughout |
 | `foreman_url` | `https://{{ foreman_hostname }}` | No | Base URL |
-| `foreman_data_disk_device` | `/dev/sdb` | Yes | Data disk that phase 2 partitions with LVM; added beforehand through `deployments/proxmox-vm-manage` (`virtio1` is `/dev/vdb`, `scsi1` is `/dev/sdb`) |
-| `storage_mounts` | `lv_pulp` 300G on `/var/lib/pulp`, `lv_containers` 40G on `/var/lib/containers`, `lv_pgsql` 30G on `/var/lib/pgsql`, all XFS in `vg_foreman` | No | LVs carved from the data disk; see **Storage layout** |
-| `foreman_network_interfaces` | `[]` | No | Extra NICs configured at the OS level through `mgcdrd.infrabase.network_interfaces` (bonds, VLANs, static IPs); `net0` is untouched. Empty skips the phase. See **Additional NICs** |
+| `storage_disks_extra_foreman` | `[{device: /dev/sdb, vg: vg_foreman}]` | Yes | Data disk that phase 2 partitions with LVM, layered over the base `storage_disks` (prefer a `/dev/disk/by-id/...` path, same in every layer); added beforehand through `deployments/proxmox-vm-manage` (`virtio1` is `/dev/vdb`, `scsi1` is `/dev/sdb`) |
+| `storage_mounts_extra_foreman` | `lv_pulp` 300G on `/var/lib/pulp`, `lv_containers` 40G on `/var/lib/containers`, `lv_pgsql` 30G on `/var/lib/pgsql`, all XFS in `vg_foreman` | No | LVs carved from the data disk, layered over the base `storage_mounts` so the CIS mount options from `inventory-common` are kept; see **Storage layout** |
+| `network_interfaces` | `[]` | No | Extra NICs configured at the OS level through `mgcdrd.infrabase.network_interfaces` (bonds, VLANs, static IPs); `net0` is untouched. Empty skips the phase. See **Additional NICs** |
 
 ### Installer and identity
 
@@ -124,7 +124,7 @@ Variables come from three places: `inventory/group_vars/foreman/vars.yml` (deplo
 | `foreman_puppet_release` | `openvox8` | No | Puppet/OpenVox repo release |
 | `foreman_org` | lab organization | Yes | Organization all content is created under; replace with yours |
 | `foreman_location` | lab location | Yes | Location all content is created under; replace with yours |
-| `foreman_username` | `admin` | No | Foreman admin user for API calls |
+| `foreman_admin_username`, `foreman_admin_password` | Vault lookups (`vault.yml`) | Yes | Foreman admin account: created by `foreman_install` and used by `foreman_config` for API calls |
 | `foreman_installer_cli_enable`, `foreman_installer_plugin_enable`, `foreman_installer_proxy_plugin_enable`, `foreman_installer_further_enable` | lists (see **Plugins enabled**) | No | hammer modules, Foreman plugins, Smart Proxy plugins, and extra packages passed to `foreman-installer` |
 | `foreman_installer_tuning` | `development` | No | Installer tuning profile |
 | `foreman_installer_skip_checks` | `true` | No | Skip the installer's preflight checks |
@@ -165,13 +165,13 @@ Variables come from three places: `inventory/group_vars/foreman/vars.yml` (deplo
 
 | Variable | Shipped value | Required | Description |
 |---|---|---|---|
-| `foreman_acme_ca` | `letsencrypt` | No | `letsencrypt` or `google`; Google needs an EAB keypair in Vault first. See **Certificate renewal** |
+| `acme_sh_ca` | `letsencrypt` | No | `letsencrypt` or `google`; Google needs an EAB keypair in Vault first. See **Certificate renewal** |
 | `foreman_custom_certs` | `true` | No | Use the `acme_sh` cert instead of the self-signed one |
 | `foreman_cert_path`, `foreman_cert_key_path`, `foreman_cert_ca_path` | `/etc/ssl/acme/{{ foreman_hostname }}/{cert,key,ca}.pem` | No | Certificate, key, and self-contained CA chain |
 | `foreman_certs_city`, `foreman_certs_country`, `foreman_certs_org`, `foreman_certs_org_unit`, `foreman_certs_state` | lab values | Yes | Subject fields for the internal certificates; replace with yours |
 | `foreman_proxy_content_enable_docker` | `false` | No | Container Pulp content type |
 | `foreman_proxy_content_enable_ostree` | `true` | No | OSTree Pulp content type |
-| `foreman_awx_url`, `foreman_awx_job_template_id` | commented out | No | AWX callback integration; uncomment once job templates exist (with `vault_awx_host_config_key`) |
+| `foreman_awx_url`, `foreman_awx_job_template_id` | commented out | No | AWX callback integration; uncomment once job templates exist (with `foreman_awx_host_config_key`) |
 
 ### Template sync (GitLab)
 
@@ -221,17 +221,25 @@ Copy to `vault.yml` (gitignored). Every value resolves from Vault KV at `<vault_
 
 | Variable | Source | Required | Description |
 |---|---|---|---|
-| `vault_foreman_admin_username`, `vault_foreman_admin_password` | `<env>/foreman` | Yes | Foreman admin credentials |
-| `vault_foreman_db_password` | `<env>/foreman` | Yes | Foreman database password |
-| `vault_foreman_host_root_pass` | `<env>/foreman` | Yes | Root password set on provisioned hosts |
-| `vault_foreman_realm_agent_password` | `<env>/foreman` | If `foreman_realm_enable` | Password of the `foreman_realm_principal` IPA account |
-| `vault_foreman_template_sync_ssh_private_key`, `vault_foreman_template_sync_ssh_public_key` | `<env>/foreman` | If template sync is used | ed25519 keypair for the `foreman` OS user's GitLab access; the public half is a deploy key on the templates project |
-| `vault_foreman_ldap_bind_password` | `<env>/foreman`, field `ldap_bind_password` | If `foreman_ldap_auth_sources` is set | Bind account password for the LDAP auth source (IPA fallback) |
-| `vault_ipa_admin_user`, `vault_ipa_admin_password` | `<env>/ipa/domain_admin` | If `foreman_realm_enable` | IPA domain admin, used to prepare the realm principal |
-| `vault_pdns_api_key` | `<env>/pdns` | If `foreman_dns_provider: powerdns` | PowerDNS API key |
-| `vault_pve_password`, `vault_pve2_password`, `vault_pve3_password`, `vault_pve4_password`, `vault_pve6_password` | `<env>/proxmox/root` | One per compute resource | Proxmox root passwords |
-| `vault_acme_email` | `<env>/acme` | Yes | ACME account email |
-| `vault_acme_google_eab_kid`, `vault_acme_google_eab_hmac_key` | `<env>/acme/google/<foreman_hostname>` | If `foreman_acme_ca: google` | Google Public CA EAB credentials |
+| `foreman_admin_username`, `foreman_admin_password` | `<env>/foreman` | Yes | Foreman admin credentials |
+| `foreman_db_password` | `<env>/foreman` | Yes | Foreman database password |
+| `foreman_host_root_pass` | `<env>/foreman` | Yes | Root password set on provisioned hosts |
+| `foreman_realm_agent_password` | `<env>/foreman` | If `foreman_realm_enable` | Password of the `foreman_realm_principal` IPA account |
+| `foreman_template_sync_ssh_private_key`, `foreman_template_sync_ssh_public_key` | `<env>/foreman` | If template sync is used | ed25519 keypair for the `foreman` OS user's GitLab access; the public half is a deploy key on the templates project |
+| `foreman_ipa_admin_user`, `foreman_ipa_admin_password` | `<env>/ipa/domain_admin` | If `foreman_realm_vault_rotate` | IPA account scoped to reset only the realm principal's password |
+| `foreman_pdns_api_key`, `acme_sh_pdns_token` | `<env>/pdns` | If `foreman_dns_provider: powerdns` | PowerDNS API key (smart proxy and the `dns_pdns` ACME challenge) |
+| `acme_sh_register_email` | `<env>/acme` | Yes | ACME account email |
+| `acme_sh_eab_kid`, `acme_sh_eab_hmac_key` | `<env>/acme/google/<foreman_hostname>` | If `acme_sh_ca: google` | Google Public CA EAB credentials |
+
+Other secrets are inlined where they are used, in `vars.yml`: the Proxmox
+passwords in `foreman_compute_resources` (`<env>/proxmox/root`, one
+`pve<N>_password` key per node) and, if `foreman_ldap_auth_sources` is set,
+each source's `account_password` (`<env>/foreman`, field `ldap_bind_password`).
+
+Several secrets are set under two names because other roles read them under
+their own: `foreman_pdns_api_key` and `acme_sh_pdns_token`, and
+`foreman_ipa_admin_*` versus `vault_ipa_admin_*` on a host that also runs the
+IPA roles. Both names point at the same Vault lookup.
 
 ---
 
@@ -242,9 +250,9 @@ Copy to `vault.yml` (gitignored). Every value resolves from Vault KV at `<vault_
 2. Set `foreman_dhcp_interface` in `inventory/group_vars/foreman/vars.yml` to the correct NIC
 3. Set `foreman_pdns_api_url` in `vars.yml` to the PowerDNS REST API endpoint
 4. Populate all Vault paths (see below)
-5. Leave `foreman_acme_ca: letsencrypt` (default) or switch to `google` once
-   the Google Public CA EAB keypair is populated at `infra/lab/acme/google`
-6. Uncomment `foreman_awx_url` in `vars.yml` and `vault_awx_host_config_key` in `vault.yml`
+5. Leave `acme_sh_ca: letsencrypt` (default) or switch to `google` once
+   the Google Public CA EAB keypair is populated at `infra/lab/acme/google/<foreman_hostname>`
+6. Uncomment `foreman_awx_url` in `vars.yml` and `foreman_awx_host_config_key` in `vault.yml`
    once AWX job templates are created
 
 
@@ -257,7 +265,7 @@ Copy to `vault.yml` (gitignored). Every value resolves from Vault KV at `<vault_
 | PowerDNS API | `infra/lab/pdns` | `api_key` |
 | ProxMox nodes | `infra/lab/proxmox/root` | one `<node>_password` key per compute node referenced in `vars.yml` (e.g. `pve2_password`) |
 | ACME / Cloudflare | `infra/lab/acme` | `email`, `cf_key`, `cf_email` (legacy Cloudflare Global API Key mode) |
-| ACME / Google Public CA EAB | `infra/lab/acme/google` | `kid`, `hmac_key` (only read when `foreman_acme_ca: google`, see below) |
+| ACME / Google Public CA EAB | `infra/lab/acme/google/<foreman_hostname>` | `kid`, `hmac_key` (only read when `acme_sh_ca: google`, see below) |
 | AWX callback | `infra/lab/awx/host_callback` | `host_config_key` (optional — only needed once AWX job templates exist) |
 
 `realm_agent_password` is the password for the IPA account named in
@@ -277,8 +285,13 @@ generated per-host.
 The data disk is added via `deployments/proxmox-vm-manage`, run against this
 host before this deployment (see that deployment's README and its
 `inventory/host_vars/` for the foreman host's disk spec). Phase 2 here just
-partitions whatever device `foreman_data_disk_device` (`vars.yml`) points at
-with LVM:
+partitions whatever device `storage_disks_extra_foreman` (`vars.yml`) points at
+with LVM. The disk and LVs are `*_extra_foreman` layers, merged over the base
+`storage_disks` / `storage_mounts` by the `storage` role, so the CIS mounts
+from `inventory-common` (`/tmp` with `noexec`, and so on) stay in place. Never
+override the base `storage_mounts` or `storage_disks` for this host. The phase
+runs whenever any `storage_disks` or `storage_disks_extra_*` var is set, which
+includes a host that sets one for the harden deployment alone.
 
 | LV | Mount | Size |
 |----|-------|------|
@@ -293,10 +306,10 @@ Additional VM network interfaces (`net1`+) are added via
 `deployments/proxmox-vm-manage` (`mgcdrd.proxmox.proxmox_nic` under the
 hood) — `net0` stays owned by the VM's clone-time config and isn't touched
 by either deployment. Once a NIC exists at the PVE level, configure it at
-the OS level here via `foreman_network_interfaces` in `vars.yml`:
+the OS level here via `network_interfaces` in `vars.yml`:
 
 ```yaml
-foreman_network_interfaces:
+network_interfaces:
   - name: net1
     type: physical
     device: eth1
@@ -311,13 +324,13 @@ reference.
 ## Certificate renewal
 
 The web cert is an RSA 2048 cert (`acme_sh` role, `complete_chain: true`)
-issued by the CA set in `foreman_acme_ca` (`vars.yml`):
+issued by the CA set in `acme_sh_ca` (`vars.yml`):
 
 - **`letsencrypt`** (default) — `ca.pem` carries the full chain rooted with
   ISRG Root X1.
 - **`google`** — Google Public CA, `ca.pem` rooted with GTS Root R1. Requires
   an EAB keypair in Vault first (`gcloud publicca external-account-keys
-  create --location=<region>`, stored at `infra/lab/acme/google` as `kid` /
+  create --location=<region>`, stored at `infra/lab/acme/google/<foreman_hostname>` as `kid` /
   `hmac_key`) — Google's ACME endpoint rejects registration without it.
 
 Either way `katello-certs-check` gets a self-contained chain. On each acme.sh
