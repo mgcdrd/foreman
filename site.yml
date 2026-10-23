@@ -63,7 +63,7 @@
 
 # ============================================================
 # Phase 3 — SSL certificate (acme_sh)
-# CA is selected by acme_sh_ca (letsencrypt | google, see vars.yml).
+# CA is selected by acme_sh_ca (letsencrypt | google, see foreman.yml).
 # Either way ca.pem is rooted to a self-contained chain — katello-certs
 # validates the chain to a self-signed root.
 # ============================================================

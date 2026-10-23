@@ -21,7 +21,7 @@ DHCP, TFTP, DNS, Discovery, OpenSCAP, or Realm in 3.19.
   its own Kerberos keytab; no admin privilege is needed for that step.
 - HashiCorp Vault running and populated (see Vault paths below)
 - Collections installed: `ansible-galaxy collection install -r collections/requirements.yml`
-- `../../inventory-common` cloned as a sibling of `deployments/` (see below)
+- An environment inventory (`../../inventory-common/lab` for the lab; see below)
 
 If the VM was previously registered to another Foreman/Katello as a content
 host, the install preflight unregisters it and re-enables the standard Rocky
@@ -30,37 +30,22 @@ repos automatically.
 
 ## First-time setup
 
-This deployment has no `hosts.yml`/`group_vars/all.yml` of its own — the
-`foreman` group, its host, and shared environment constants (`domain`,
-`vault_addr`, `ipa_primary`, `kerberos_realm`, `gitlab_url`, `vault_kv_*`,
-`ansible_user`, `rsyslog_remote_*`) all come from
-[inventory-common](https://gitlab.example.com/ansible/inventory-common),
-referenced as a second inventory source in `ansible.cfg`. Clone it as a
-sibling of `deployments/`:
+This deployment has no inventory of its own. The `foreman` group, its hosts,
+the shared environment constants (`domain`, `vault_addr`, `ipa_primary`,
+`kerberos_realm`, `gitlab_url`, `vault_kv_*`, `ansible_user`, `rsyslog_remote_*`)
+and every foreman variable are in one environment inventory, set as the
+`inventory` in `ansible.cfg` (`../../inventory-common/lab/hosts.yml`). For a
+customer engagement, copy `inventory-template` to an `inventory-<client>` repo
+and point `ansible.cfg` (or `-i`) at the environment directory in it.
 
-```bash
-git clone https://gitlab.example.com/ansible/inventory-common.git ../../inventory-common
-```
+Add the host under the `foreman` group in the environment's `hosts.yml` if it
+isn't there yet. The foreman variables are in `group_vars/foreman/foreman.yml`
+(shared) and `host_vars/<fqdn>/foreman.yml` (per-host differences); the Vault
+lookups are in `group_vars/foreman/vault.yml`. Replace `infra/<env>/` in the
+Vault paths with your Vault namespace (e.g. `infra/lab/`) by setting
+`vault_kv_infra_mount` and `vault_kv_env` in `group_vars/all/all.yml`.
 
-Add the host under the `foreman` group in `../../inventory-common/hosts.yml`
-if it isn't there yet — see that repo's README for the tier rule on what
-belongs there versus here. For a customer engagement, point at a
-`inventory-<client>` repo (cloned from `inventory-template`) instead, and
-update `ansible.cfg`'s inventory path accordingly.
-
-Two files are gitignored and must be created from their examples:
-
-```bash
-cp inventory/group_vars/all/env.yml.example inventory/group_vars/all/env.yml
-cp inventory/group_vars/foreman/vault.yml.example inventory/group_vars/foreman/vault.yml
-```
-
-- **`env.yml`** — set the `foreman` hostname to match what you added to
-  `inventory-common/hosts.yml`; only override `domain`/`vault_addr`/etc. here
-  if this deployment must differ from the shared environment
-- **`vault.yml`** — replace `infra/<env>/` in every path with your Vault namespace (e.g. `infra/lab/`)
-
-Then update `vars.yml` with your network values:
+Then update `foreman.yml` with your network values:
 - `foreman_dhcp_interface` — NIC name
 - `foreman_dhcp_gateway` / `foreman_dhcp_range_*` / `foreman_dhcp_nameservers` — your subnet
 - `foreman_subnets` network block
@@ -102,14 +87,13 @@ Phase 5 sub-targets for partial re-runs:
 
 ## Variable reference
 
-Variables come from three places: `inventory/group_vars/foreman/vars.yml` (deployment tuning and the content model), `inventory/group_vars/all/env.yml` (copy of `env.yml.example`, gitignored), and `inventory-common` (`domain`, `kerberos_realm`, `ipa_primary`, `gitlab_url`, `vault_addr`, `vault_kv_*`, `ansible_user`, `rsyslog_remote_*`). "Required" means there is no usable default, or the shipped value is lab-specific and must be replaced. Role defaults for anything not listed are in the [`foreman_install`](../../collections/infrasvc/roles/foreman_install/README.md) and [`foreman_config`](../../collections/infrasvc/roles/foreman_config/README.md) role READMEs.
+Variables come from the environment inventory: `group_vars/foreman/foreman.yml` (tuning and the content model), `host_vars/<fqdn>/foreman.yml` (per-host values that differ), `group_vars/foreman/vault.yml` (Vault lookups), and `group_vars/all/all.yml` (`domain`, `kerberos_realm`, `ipa_primary`, `gitlab_url`, `vault_addr`, `vault_kv_*`, `ansible_user`, `rsyslog_remote_*`). "Required" means there is no usable default, or the shipped value is lab-specific and must be replaced. Role defaults for anything not listed are in the [`foreman_install`](../../collections/infrasvc/roles/foreman_install/README.md) and [`foreman_config`](../../collections/infrasvc/roles/foreman_config/README.md) role READMEs.
 
 ### Host and storage
 
 | Variable | Shipped value | Required | Description |
 |---|---|---|---|
-| `foreman` | `foreman.example.com` (`env.yml.example`) | Yes | Foreman FQDN; must match the `foreman` group host in `inventory-common/hosts.yml` |
-| `foreman_hostname` | `{{ foreman }}` | No | Server FQDN used throughout |
+| `foreman_hostname` | `{{ inventory_hostname }}` | No | Server FQDN used throughout; the host's name in the `foreman` group |
 | `foreman_url` | `https://{{ foreman_hostname }}` | No | Base URL |
 | `storage_disks_extra_foreman` | `[{device: /dev/sdb, vg: vg_foreman}]` | Yes | Data disk that phase 2 partitions with LVM, layered over the base `storage_disks` (prefer a `/dev/disk/by-id/...` path, same in every layer); added beforehand through `deployments/proxmox-vm-manage` (`virtio1` is `/dev/vdb`, `scsi1` is `/dev/sdb`) |
 | `storage_mounts_extra_foreman` | `lv_pulp` 300G on `/var/lib/pulp`, `lv_containers` 40G on `/var/lib/containers`, `lv_pgsql` 30G on `/var/lib/pgsql`, all XFS in `vg_foreman` | No | LVs carved from the data disk, layered over the base `storage_mounts` so the CIS mount options from `inventory-common` are kept; see **Storage layout** |
@@ -215,9 +199,9 @@ Each is a list of entries applied through `foreman_config`; every entry takes `s
 | `foreman_scap_policies` | `CIS Rocky 9 - Level 2`, weekly on Sunday, deployed by Ansible to `Rocky 9 Base` | No | OpenSCAP policies (`scap_content_title`, `scap_content_profile`, `deploy_by`, `period`, `weekday`, `hostgroups`) |
 | `foreman_usergroups` | `allow_full_sudo`, external auth source, mapped to `admins`, `isadmin: true` | No | User groups mapped to external groups |
 
-### Vault lookups (`inventory/group_vars/foreman/vault.yml.example`)
+### Vault lookups (`group_vars/foreman/vault.yml`)
 
-Copy to `vault.yml` (gitignored). Every value resolves from Vault KV at `<vault_kv_env>/…` on `vault_kv_infra_mount`; the lab paths are listed under **Vault paths**.
+Every value resolves from Vault KV at `<vault_kv_env>/…` on `vault_kv_infra_mount`; the lab paths are listed under **Vault paths**.
 
 | Variable | Source | Required | Description |
 |---|---|---|---|
@@ -231,7 +215,7 @@ Copy to `vault.yml` (gitignored). Every value resolves from Vault KV at `<vault_
 | `acme_sh_register_email` | `<env>/acme` | Yes | ACME account email |
 | `acme_sh_eab_kid`, `acme_sh_eab_hmac_key` | `<env>/acme/google/<foreman_hostname>` | If `acme_sh_ca: google` | Google Public CA EAB credentials |
 
-Other secrets are inlined where they are used, in `vars.yml`: the Proxmox
+Other secrets are inlined where they are used, in `foreman.yml`: the Proxmox
 passwords in `foreman_compute_resources` (`<env>/proxmox/root`, one
 `pve<N>_password` key per node) and, if `foreman_ldap_auth_sources` is set,
 each source's `account_password` (`<env>/foreman`, field `ldap_bind_password`).
@@ -247,12 +231,12 @@ IPA roles. Both names point at the same Vault lookup.
 
 1. Run `deployments/proxmox-vm-manage` against this host to add the data
    disk (and any extra NICs) — see that deployment's README
-2. Set `foreman_dhcp_interface` in `inventory/group_vars/foreman/vars.yml` to the correct NIC
-3. Set `foreman_pdns_api_url` in `vars.yml` to the PowerDNS REST API endpoint
+2. Set `foreman_dhcp_interface` in `group_vars/foreman/foreman.yml` to the correct NIC
+3. Set `foreman_pdns_api_url` in `foreman.yml` to the PowerDNS REST API endpoint
 4. Populate all Vault paths (see below)
 5. Leave `acme_sh_ca: letsencrypt` (default) or switch to `google` once
    the Google Public CA EAB keypair is populated at `infra/lab/acme/google/<foreman_hostname>`
-6. Uncomment `foreman_awx_url` in `vars.yml` and `foreman_awx_host_config_key` in `vault.yml`
+6. Uncomment `foreman_awx_url` in `foreman.yml` and `foreman_awx_host_config_key` in `vault.yml`
    once AWX job templates are created
 
 
@@ -263,7 +247,7 @@ IPA roles. Both names point at the same Vault lookup.
 | Foreman admin + DB | `infra/lab/foreman` | `admin_username`, `admin_password`, `db_password`, `host_root_pass`, `realm_agent_password`, `template_sync_ssh_private_key`, `template_sync_ssh_public_key`, `ldap_bind_password` (only when `foreman_ldap_auth_sources` is set) |
 | IPA domain admin | `infra/lab/ipa/domain_admin` | `username`, `password` |
 | PowerDNS API | `infra/lab/pdns` | `api_key` |
-| ProxMox nodes | `infra/lab/proxmox/root` | one `<node>_password` key per compute node referenced in `vars.yml` (e.g. `pve2_password`) |
+| ProxMox nodes | `infra/lab/proxmox/root` | one `<node>_password` key per compute node referenced in `foreman.yml` (e.g. `pve2_password`) |
 | ACME / Cloudflare | `infra/lab/acme` | `email`, `cf_key`, `cf_email` (legacy Cloudflare Global API Key mode) |
 | ACME / Google Public CA EAB | `infra/lab/acme/google/<foreman_hostname>` | `kid`, `hmac_key` (only read when `acme_sh_ca: google`, see below) |
 | AWX callback | `infra/lab/awx/host_callback` | `host_config_key` (optional — only needed once AWX job templates exist) |
@@ -284,11 +268,11 @@ generated per-host.
 
 The data disk is added via `deployments/proxmox-vm-manage`, run against this
 host before this deployment (see that deployment's README and its
-`inventory/host_vars/` for the foreman host's disk spec). Phase 2 here just
-partitions whatever device `storage_disks_extra_foreman` (`vars.yml`) points at
+`host_vars/` for the foreman host's disk spec). Phase 2 here just
+partitions whatever device `storage_disks_extra_foreman` (`foreman.yml`) points at
 with LVM. The disk and LVs are `*_extra_foreman` layers, merged over the base
 `storage_disks` / `storage_mounts` by the `storage` role, so the CIS mounts
-from `inventory-common` (`/tmp` with `noexec`, and so on) stay in place. Never
+from `group_vars/all/harden.yml` (`/tmp` with `noexec`, and so on) stay in place. Never
 override the base `storage_mounts` or `storage_disks` for this host. The phase
 runs whenever any `storage_disks` or `storage_disks_extra_*` var is set, which
 includes a host that sets one for the harden deployment alone.
@@ -306,7 +290,7 @@ Additional VM network interfaces (`net1`+) are added via
 `deployments/proxmox-vm-manage` (`mgcdrd.proxmox.proxmox_nic` under the
 hood) — `net0` stays owned by the VM's clone-time config and isn't touched
 by either deployment. Once a NIC exists at the PVE level, configure it at
-the OS level here via `network_interfaces` in `vars.yml`:
+the OS level here via `network_interfaces` in `foreman.yml`:
 
 ```yaml
 network_interfaces:
@@ -324,7 +308,7 @@ reference.
 ## Certificate renewal
 
 The web cert is an RSA 2048 cert (`acme_sh` role, `complete_chain: true`)
-issued by the CA set in `acme_sh_ca` (`vars.yml`):
+issued by the CA set in `acme_sh_ca` (`foreman.yml`):
 
 - **`letsencrypt`** (default) — `ca.pem` carries the full chain rooted with
   ISRG Root X1.
